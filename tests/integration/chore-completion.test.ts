@@ -1,0 +1,221 @@
+/**
+ * T029 — Integration tests for kid chore completion server action.
+ * Covers: success, duplicate prevention, coin award.
+ */
+import { describe, it, expect } from 'vitest';
+import { testDb } from './setup.js';
+import {
+	families,
+	parents,
+	kids,
+	chores,
+	choreCompletions
+} from '../../src/lib/server/db/schema.js';
+import { ulid, now } from '../../src/lib/server/db/utils.js';
+import { hashPassword } from '../../src/lib/server/auth.js';
+import { eq } from 'drizzle-orm';
+
+const getActions = async () =>
+	(await import('../../src/routes/(app)/chores/+page.server.js')).actions;
+
+function makeFormData(data: Record<string, string>): FormData {
+	const fd = new FormData();
+	for (const [k, v] of Object.entries(data)) fd.append(k, v);
+	return fd;
+}
+
+function kidSession(familyId: string, kidId: string) {
+	return {
+		id: 'sess-kid-1',
+		familyId,
+		userId: kidId,
+		userRole: 'kid' as const,
+		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
+		createdAt: now(),
+		user: { id: kidId, displayName: 'Emma', avatarEmoji: '👧', familyId }
+	};
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mockKidEvent(session: ReturnType<typeof kidSession>, formDataObj: Record<string, string>): any {
+	return {
+		locals: { session },
+		request: { formData: async () => makeFormData(formDataObj) }
+	};
+}
+
+async function seedChoreSetup() {
+	const familyId = ulid();
+	const parentId = ulid();
+	const kidId = ulid();
+	const choreId = ulid();
+
+	await testDb.insert(families).values({
+		id: familyId,
+		name: 'Test Family',
+		leaderboardResetDay: 1,
+		createdAt: now()
+	});
+	await testDb.insert(parents).values({
+		id: parentId,
+		familyId,
+		email: `parent-${familyId}@example.com`,
+		passwordHash: await hashPassword('password123'),
+		displayName: 'Test Parent',
+		createdAt: now()
+	});
+	await testDb.insert(kids).values({
+		id: kidId,
+		familyId,
+		displayName: 'Emma',
+		avatarEmoji: '👧',
+		pin: 'hashed',
+		isActive: true,
+		createdAt: now()
+	});
+	await testDb.insert(chores).values({
+		id: choreId,
+		familyId,
+		title: 'Make your bed',
+		description: '',
+		emoji: '🛏️',
+		frequency: 'daily',
+		coinValue: 10,
+		assignedKidId: null,
+		isActive: true,
+		createdAt: now()
+	});
+
+	return { familyId, parentId, kidId, choreId };
+}
+
+describe('chores — complete action', () => {
+	it('records a chore completion and awards coins', async () => {
+		const { familyId, kidId, choreId } = await seedChoreSetup();
+		const actions = await getActions();
+
+		const result = await actions.complete(
+			mockKidEvent(kidSession(familyId, kidId), { choreId })
+		);
+
+		expect(result).toMatchObject({ success: true });
+
+		const completions = await testDb.select().from(choreCompletions);
+		expect(completions).toHaveLength(1);
+		expect(completions[0].choreId).toBe(choreId);
+		expect(completions[0].kidId).toBe(kidId);
+		expect(completions[0].coinsAwarded).toBe(10);
+		expect(completions[0].periodKey).toMatch(/^\d{4}-\d{2}-\d{2}$/); // daily format
+	});
+
+	it('prevents duplicate completions in the same period', async () => {
+		const { familyId, kidId, choreId } = await seedChoreSetup();
+		const actions = await getActions();
+
+		// First completion — should succeed
+		await actions.complete(mockKidEvent(kidSession(familyId, kidId), { choreId }));
+
+		// Second completion in same period — should fail
+		const result = await actions.complete(
+			mockKidEvent(kidSession(familyId, kidId), { choreId })
+		);
+
+		expect((result as { status: number }).status).toBe(409);
+		expect((result as { data: { error: string } }).data.error).toMatch(/already completed/i);
+
+		// Only one completion record should exist
+		const completions = await testDb.select().from(choreCompletions);
+		expect(completions).toHaveLength(1);
+	});
+
+	it('respects chore assignment — rejects if assigned to different kid', async () => {
+		const { familyId, parentId } = await seedChoreSetup();
+
+		// Create a second kid
+		const kid2Id = ulid();
+		await testDb.insert(kids).values({
+			id: kid2Id,
+			familyId,
+			displayName: 'Jake',
+			avatarEmoji: '👦',
+			pin: 'hashed',
+			isActive: true,
+			createdAt: now()
+		});
+
+		// Create a chore assigned only to kid2
+		const kid1Id = ulid();
+		await testDb.insert(kids).values({
+			id: kid1Id,
+			familyId,
+			displayName: 'Emma2',
+			avatarEmoji: '👧',
+			pin: 'hashed',
+			isActive: true,
+			createdAt: now()
+		});
+
+		const assignedChoreId = ulid();
+		await testDb.insert(chores).values({
+			id: assignedChoreId,
+			familyId,
+			title: 'Jake-only chore',
+			description: '',
+			emoji: '🐕',
+			frequency: 'daily',
+			coinValue: 5,
+			assignedKidId: kid2Id, // assigned to kid2
+			isActive: true,
+			createdAt: now()
+		});
+
+		const actions = await getActions();
+		// kid1 tries to complete kid2's chore
+		const result = await actions.complete(
+			mockKidEvent(kidSession(familyId, kid1Id), { choreId: assignedChoreId })
+		);
+
+		expect((result as { status: number }).status).toBe(403);
+	});
+
+	it('rejects missing choreId', async () => {
+		const { familyId, kidId } = await seedChoreSetup();
+		const actions = await getActions();
+
+		const result = await actions.complete(
+			mockKidEvent(kidSession(familyId, kidId), { choreId: '' })
+		);
+
+		expect((result as { status: number }).status).toBe(400);
+	});
+
+	it('awards correct coin amount matching chore coinValue', async () => {
+		const { familyId, kidId } = await seedChoreSetup();
+
+		// Add a weekly chore with 25 coins
+		const weeklyChoreId = ulid();
+		await testDb.insert(chores).values({
+			id: weeklyChoreId,
+			familyId,
+			title: 'Weekly task',
+			description: '',
+			emoji: '📚',
+			frequency: 'weekly',
+			coinValue: 25,
+			assignedKidId: null,
+			isActive: true,
+			createdAt: now()
+		});
+
+		const actions = await getActions();
+		await actions.complete(mockKidEvent(kidSession(familyId, kidId), { choreId: weeklyChoreId }));
+
+		const completions = await testDb
+			.select()
+			.from(choreCompletions)
+			.where(eq(choreCompletions.choreId, weeklyChoreId));
+
+		expect(completions[0].coinsAwarded).toBe(25);
+		expect(completions[0].periodKey).toMatch(/^\d{4}-W\d{2}$/); // weekly format
+	});
+});

@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+build/
+.svelte-kit/
+
+# Data / database
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Drizzle generated (migrations are committed; snapshots are not)
+drizzle/meta/
+
+# Environment
+.env
+!.env.example
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/settings.json
+*.swp
+*.tmp
+
+# Test outputs
+playwright-report/
+test-results/
+coverage/

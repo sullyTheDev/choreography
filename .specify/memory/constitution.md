@@ -1,50 +1,61 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+
+<!--
+Sync Impact Report
+Version change: (none) → 1.0.0
+Modified principles: all placeholders → Choreography-specific
+Added sections: All (fully instantiated)
+Removed sections: None
+Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md, ✅ tasks-template.md
+Follow-up TODOs: None (all placeholders resolved)
+-->
+
+# Choreography Constitution
+
+Choreography is an open-source web application for families to manage chores, rewards, coins, and leaderboards in a fun, family-centered way. The project is self-hostable by design, with SvelteKit as the primary implementation framework.
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Family-Centered Product Slices
+Every feature MUST map to a real family workflow for parents, kids, or both. Every specification MUST define independently testable user stories that can be delivered incrementally. Avoid shipping technical infrastructure without a clearly linked user outcome. Rationale: This ensures all work delivers value to real users and supports incremental, testable progress.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Self-Hostable and Open by Default
+Core product functionality MUST work in a self-hosted deployment. Hosted-only features MAY exist only if they are optional and do not block self-hosted users from the main product value. Prefer architectures, dependencies, and operational choices that are realistic for open-source contributors and self-hosters. Rationale: This maximizes accessibility and sustainability for all users.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Privacy and Parent Control First
+Data collection MUST be minimal and purpose-driven. The system MUST NOT send personal family data to third-party analytics platforms by default. Parent-controlled permissions and visibility boundaries MUST be explicit in product behavior. Families MUST be able to export and delete their data. Avoid collecting precise location or unnecessary profile data. Rationale: Protects family privacy and empowers parents.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Test-First, Correct, Accessible Delivery
+Work MUST start with specification before implementation. Tests MUST be written before feature code for acceptance-critical behavior. Acceptance criteria MUST be covered by automated tests before a feature is considered done. Basic accessibility validation is required for shipped user-facing flows. Reliability and correctness matter more than shipping broad but weakly validated behavior. Rationale: Ensures quality, safety, and inclusivity.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Observable Simplicity
+Prefer the simplest SvelteKit architecture that satisfies the current need. Avoid unnecessary services, abstractions, or infrastructure until justified by real product pressure. Features with operational risk or user-impacting workflows MUST include structured logging and/or monitoring hooks as appropriate. Documentation and quickstart guidance MUST be updated when behavior changes. Rationale: Keeps the project maintainable and debuggable for all contributors.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Additional Technical and Product Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+- Default architecture is a single SvelteKit application unless a more complex topology is justified.
+- The project is open source and must remain friendly to contributors.
+- Self-hosting is a first-class concern for all core features.
+- Optional hosted-only enhancements are allowed, but must remain clearly optional and not degrade the self-hosted experience.
+- Do not add unnecessary personal-data collection at any layer.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+## Development Workflow and Quality Gates
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+- All work MUST begin with a written specification before implementation.
+- Features MUST be delivered as independent user-story slices.
+- Tests for acceptance criteria MUST be written before implementation.
+- A feature is not done until:
+	- Automated acceptance coverage exists
+	- Accessibility is checked at a basic level
+	- Relevant observability (logging/monitoring) is added
+	- Documentation and quickstart are updated when behavior changes
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This is the initial constitution for the Choreography project. Amendments are approved by the project maintainer and MUST include a written rationale. Constitution changes use semantic versioning:
+- MAJOR: Principle removals or breaking governance changes
+- MINOR: New principles or materially expanded requirements
+- PATCH: Clarifications and wording-only refinements
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+This constitution supersedes all other practices. All PRs and reviews must verify compliance with these principles and gates.
+
+**Version**: 1.0.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-08
