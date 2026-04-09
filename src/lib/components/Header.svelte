@@ -1,5 +1,6 @@
 <script lang="ts">
-	import KidSwitcher from './KidSwitcher.svelte';
+        import { enhance } from '$app/forms';
+        import KidSwitcher from './KidSwitcher.svelte';
 
 	interface Props {
 		appName: string;
@@ -28,14 +29,14 @@
 			{/if}
 
 			<div class="coin-badge" aria-label="{coinBalance} coins">
-				🪙 <span>{coinBalance}</span>
+				ðŸª™ <span>{coinBalance}</span>
 			</div>
 
 			<span class="role-badge" class:role-parent={user.role === 'parent'}>
-				{user.role === 'parent' ? '👑 Parent' : user.avatarEmoji ?? '👤'}
+				{user.role === 'parent' ? 'ðŸ‘‘ Parent' : user.avatarEmoji ?? 'ðŸ‘¤'}
 			</span>
 
-			<form method="POST" action="/logout" style="display:contents">
+			<form method="POST" action="/logout" use:enhance style="display:contents">
 				<button type="submit" class="btn btn-ghost btn-sm">Sign out</button>
 			</form>
 		</div>
