@@ -15,9 +15,10 @@ FROM node:20-alpine AS production
 
 WORKDIR /app
 
-# Only copy the built output and production node_modules
+# Only copy the built output, migrations, and production node_modules
 COPY --from=builder /app/build ./build
 COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/drizzle ./drizzle
 COPY package.json .
 
 # Persistent data directory for SQLite
