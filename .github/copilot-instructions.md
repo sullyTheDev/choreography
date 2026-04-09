@@ -1,8 +1,12 @@
 ﻿# choreography Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-08
+Auto-generated from all feature plans. Last updated: 2026-04-09
 
 ## Active Technologies
+- [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (002-skeleton-ui-migration)
+- [if applicable, e.g., PostgreSQL, CoreData, files or N/A] (002-skeleton-ui-migration)
+- TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Tailwind CSS v4, @skeletonlabs/skeleton v4, @skeletonlabs/skeleton-svelte v4, @tailwindcss/forms, @lucide/svelte (002-skeleton-ui-migration)
+- SQLite via Drizzle ORM + libsql (unchanged) (002-skeleton-ui-migration)
 
 - TypeScript 5.x / Node.js 20 LTS (001-choreography-mvp)
 
@@ -23,6 +27,8 @@ npm test; npm run lint
 TypeScript 5.x / Node.js 20 LTS: Follow standard conventions
 
 ## Recent Changes
+- 002-skeleton-ui-migration: Added TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Tailwind CSS v4, @skeletonlabs/skeleton v4, @skeletonlabs/skeleton-svelte v4, @tailwindcss/forms, @lucide/svelte
+- 002-skeleton-ui-migration: Added [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
 
 - 001-choreography-mvp: Added TypeScript 5.x / Node.js 20 LTS
 

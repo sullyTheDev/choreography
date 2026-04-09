@@ -1,75 +1,32 @@
-<script lang="ts">
-	let {
-		rank,
-		avatarEmoji,
-		displayName,
-		coinsEarned
-	} = $props<{
-		rank: number;
-		avatarEmoji: string;
-		displayName: string;
-		coinsEarned: number;
-	}>();
+﻿<script lang="ts">
+let {
+rank,
+avatarEmoji,
+displayName,
+coinsEarned
+} = $props<{
+rank: number;
+avatarEmoji: string;
+displayName: string;
+coinsEarned: number;
+}>();
 
-	const rankLabel = $derived(
-		rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
-	);
+const rankLabel = $derived(
+rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
+);
+
+const isTopThree = $derived(rank <= 3);
 </script>
 
 <article
-	class="leaderboard-row"
-	class:top-three={rank <= 3}
-	aria-label="{displayName}: rank {rank}, {coinsEarned} coins this week"
+	class="card bg-white border border-surface-200 shadow-md flex items-center gap-3 py-3 px-4 {isTopThree ? 'border-l-4 border-l-primary-500' : ''}"
+aria-label="{displayName}: rank {rank}, {coinsEarned} coins this week"
 >
-	<span class="rank" aria-hidden="true">{rankLabel}</span>
-	<span class="avatar" aria-hidden="true">{avatarEmoji}</span>
-	<span class="name">{displayName}</span>
-	<span class="coins">
-		<span class="coin-icon" aria-hidden="true">🪙</span>
-		<span class="coin-value">{coinsEarned}</span>
-	</span>
+<span class="text-xl w-10 text-center shrink-0" aria-hidden="true">{rankLabel}</span>
+<span class="text-xl shrink-0" aria-hidden="true">{avatarEmoji}</span>
+<span class="font-semibold flex-1">{displayName}</span>
+<span class="flex items-center gap-1 font-bold text-primary-500">
+<span aria-hidden="true">🪙</span>
+<span class="text-lg">{coinsEarned}</span>
+</span>
 </article>
-
-<style>
-	.leaderboard-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) var(--space-4);
-		background: var(--color-surface);
-		border-radius: var(--radius-lg);
-		border: 2px solid transparent;
-	}
-
-	.leaderboard-row.top-three {
-		border-color: var(--color-primary);
-	}
-
-	.rank {
-		font-size: var(--font-size-xl);
-		width: 2.5rem;
-		text-align: center;
-		flex-shrink: 0;
-	}
-
-	.avatar {
-		font-size: var(--font-size-xl);
-	}
-
-	.name {
-		font-weight: 600;
-		flex: 1;
-	}
-
-	.coins {
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
-		font-weight: 700;
-		color: var(--color-primary);
-	}
-
-	.coin-value {
-		font-size: var(--font-size-lg);
-	}
-</style>

@@ -19,9 +19,15 @@
   },
   "dependencies": {
     "@libsql/client": "^0.14.0",
+    "@lucide/svelte": "^1.7.0",
+    "@skeletonlabs/skeleton": "^4.15.1",
+    "@skeletonlabs/skeleton-svelte": "^4.15.1",
+    "@tailwindcss/forms": "^0.5.11",
+    "@tailwindcss/vite": "^4.2.2",
     "bcrypt": "^5.1.1",
     "drizzle-orm": "^0.40.0",
     "pino": "^9.3.2",
+    "tailwindcss": "^4.2.2",
     "ulid": "^2.3.0"
   },
   "devDependencies": {

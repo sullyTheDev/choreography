@@ -1,125 +1,63 @@
-<script lang="ts">
-	import { enhance } from '$app/forms';
+﻿<script lang="ts">
+import { enhance } from '$app/forms';
 
-	interface Props {
-		id: string;
-		title: string;
-		description: string;
-		coinCost: number;
-		canAfford: boolean;
-		shortfall: number;
-		activeKidId: string | null;
-		userRole: 'parent' | 'kid';
-	}
+interface Props {
+id: string;
+title: string;
+description: string;
+coinCost: number;
+canAfford: boolean;
+shortfall: number;
+activeKidId: string | null;
+userRole: 'parent' | 'kid';
+}
 
-	let { id, title, description, coinCost, canAfford, shortfall, activeKidId, userRole }: Props =
-		$props();
+let { id, title, description, coinCost, canAfford, shortfall, activeKidId, userRole }: Props =
+$props();
+
+let submitting = $state(false);
 </script>
 
-<div class="prize-card" class:can-afford={canAfford} class:cannot-afford={!canAfford}>
-	<div class="prize-body">
-		<div class="prize-header">
-			<strong class="prize-title">{title}</strong>
-			<span class="prize-coins">🪙 {coinCost}</span>
-		</div>
-		{#if description}
-			<p class="prize-desc">{description}</p>
-		{/if}
-		{#if !canAfford && userRole === 'kid'}
-			<p class="shortfall-hint">Need {shortfall} more coins</p>
-		{/if}
-	</div>
-	<div class="prize-action">
-		{#if userRole === 'kid'}
-			<form method="POST" action="?/redeem" use:enhance>
-				<input type="hidden" name="prizeId" value={id} />
-				{#if activeKidId}
-					<input type="hidden" name="kidId" value={activeKidId} />
-				{/if}
-				<button
-					type="submit"
-					class="btn btn-redeem"
-					class:btn-primary={canAfford}
-					class:btn-disabled={!canAfford}
-					disabled={!canAfford}
-					aria-label="Redeem {title} for {coinCost} coins"
-				>
-					{canAfford ? 'Redeem' : 'Need more coins'}
-				</button>
-			</form>
-		{/if}
-	</div>
+<div class="card bg-white border border-surface-200 shadow-md p-4 flex justify-between items-center gap-4 {!canAfford ? 'opacity-70' : ''}">
+<div class="flex-1 flex flex-col gap-1 min-w-0">
+<div class="flex items-center gap-2 flex-wrap">
+<strong class="text-base font-semibold">{title}</strong>
+<span class="badge preset-tonal-warning text-xs">🪙 {coinCost}</span>
+</div>
+{#if description}
+<p class="text-sm text-surface-600-400 m-0">{description}</p>
+{/if}
+{#if !canAfford && userRole === 'kid'}
+<p class="text-sm text-surface-500 italic m-0">Need {shortfall} more coins</p>
+{/if}
 </div>
 
-<style>
-	.prize-card {
-		background: white;
-		border: 2px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		padding: var(--space-4);
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		gap: var(--space-4);
-		transition: border-color 0.2s;
-	}
-
-	.prize-card.can-afford {
-		border-color: var(--color-success, #22c55e);
-	}
-
-	.prize-card.cannot-afford {
-		opacity: 0.7;
-	}
-
-	.prize-body {
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-1);
-	}
-
-	.prize-header {
-		display: flex;
-		align-items: center;
-		gap: var(--space-2);
-	}
-
-	.prize-title {
-		font-size: var(--text-base);
-	}
-
-	.prize-coins {
-		font-size: var(--text-sm);
-		background: var(--color-warning-light, #fff7ed);
-		color: var(--color-warning-dark, #9a3412);
-		padding: 2px 8px;
-		border-radius: 9999px;
-	}
-
-	.prize-desc {
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
-		margin: 0;
-	}
-
-	.shortfall-hint {
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
-		margin: 0;
-		font-style: italic;
-	}
-
-	.btn-redeem {
-		white-space: nowrap;
-	}
-
-	.btn-disabled {
-		background: var(--color-border);
-		color: var(--color-text-secondary);
-		cursor: not-allowed;
-		border: none;
-		padding: var(--space-2) var(--space-4);
-		border-radius: var(--radius);
-	}
-</style>
+<div class="shrink-0">
+{#if userRole === 'kid'}
+<form
+method="POST"
+action="?/redeem"
+use:enhance={() => {
+submitting = true;
+return async ({ update }) => {
+await update();
+submitting = false;
+};
+}}
+>
+<input type="hidden" name="prizeId" value={id} />
+{#if activeKidId}
+<input type="hidden" name="kidId" value={activeKidId} />
+{/if}
+<button
+type="submit"
+class="btn whitespace-nowrap {canAfford ? 'preset-filled-primary-500' : 'preset-tonal'}"
+disabled={!canAfford || submitting}
+aria-label="Redeem {title} for {coinCost} coins"
+>
+{canAfford ? 'Redeem' : 'Need more coins'}
+</button>
+</form>
+{/if}
+</div>
+</div>
