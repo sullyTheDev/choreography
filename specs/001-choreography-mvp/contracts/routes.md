@@ -115,6 +115,7 @@ Prize shop for kids.
     description: string;
     coinCost: number;
     canAfford: boolean;       // kid.coinBalance >= coinCost
+    shortfall: number;        // coinCost - kid.coinBalance when canAfford is false; 0 otherwise
   }>;
   coinBalance: number;
 }
@@ -277,6 +278,32 @@ Same fields plus `kidId: string`. PIN is optional on update.
 | kidId | string | Yes |
 
 Sets `isActive = 0`.
+
+---
+
+### `GET /admin/activity` — load
+
+Parent activity log. Requires `role === 'parent'`.
+
+**Query params**: `?page={n}` (optional, default 1; 25 events per page)
+
+**Output**:
+
+```typescript
+{
+  events: Array<{
+    type: 'chore_completion' | 'prize_redemption';
+    kidId: string;
+    kidName: string;
+    kidAvatarEmoji: string;
+    title: string;         // Chore title or Prize title
+    coins: number;         // coinsAwarded (completion) or coinCost (redemption)
+    occurredAt: string;    // ISO 8601
+  }>;
+  totalCount: number;
+  page: number;
+}
+```
 
 ---
 

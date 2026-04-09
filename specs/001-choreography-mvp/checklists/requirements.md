@@ -33,4 +33,4 @@
 
 - All items pass. Spec is ready for `/speckit.clarify` or `/speckit.plan`.
 - Assumptions section documents kid authentication approach (family PIN / parent session) and self-hosting database flexibility — these are reasonable defaults, not blockers.
-- Leaderboard reset cadence configuration is noted as a stretch goal within MVP scope.
+- Leaderboard reset cadence configuration is included in MVP scope (FR-015); implemented via the family settings page.

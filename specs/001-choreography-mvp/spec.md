@@ -29,7 +29,7 @@ A parent creates a family account, adds kid profiles (e.g., Emma and Jake), and 
 
 ### User Story 2 - Prize Shop (Priority: P2)
 
-A parent creates prizes (e.g., "Extra screen time", "Pick dinner") with a name, description, and coin cost. A kid navigates to the Prize Shop tab, browses available prizes, and redeems coins for a prize. The kid's coin balance decreases and the parent receives a notification or log entry that the prize was redeemed.
+A parent creates prizes (e.g., "Extra screen time", "Pick dinner") with a name, description, and coin cost. A kid navigates to the Prize Shop tab, browses available prizes, and redeems coins for a prize. The kid's coin balance decreases and the parent receives a log entry that the prize was redeemed.
 
 **Why this priority**: The coin economy needs a spending outlet to motivate kids. Without it, coins have no purpose beyond a number. This directly supports the Prize Shop tab visible in the mockup.
 
@@ -40,7 +40,7 @@ A parent creates prizes (e.g., "Extra screen time", "Pick dinner") with a name, 
 1. **Given** a parent is logged in, **When** they create a prize with a name, description, and coin cost, **Then** the prize appears in the Prize Shop for all kids in the family.
 2. **Given** a kid has enough coins, **When** they tap to redeem a prize, **Then** their coin balance decreases by the prize cost and the redemption is recorded.
 3. **Given** a kid does not have enough coins, **When** they view a prize, **Then** the redeem action is disabled and the coin shortfall is visible.
-4. **Given** a prize has been redeemed, **When** a parent views the activity log, **Then** the redemption is visible with the kid's name, prize name, coin cost, and timestamp.
+4. **Given** a prize has been redeemed, **When** a parent views the Activity Log page, **Then** the redemption is visible with the kid's name, prize name, coin cost, and timestamp; chore completions are also shown in the same chronological feed.
 
 ---
 
@@ -73,7 +73,7 @@ Kids (and parents) navigate to the Leaderboard tab and see a ranked list of fami
 ### Functional Requirements
 
 - **FR-001**: System MUST allow a parent to create a family account with email and password.
-- **FR-002**: System MUST allow a parent to add kid profiles with a display name and avatar emoji.
+- **FR-002**: System MUST allow a parent to add, edit, and deactivate kid profiles (each with a display name and avatar emoji); deactivated kids cannot log in and are excluded from the leaderboard.
 - **FR-003**: System MUST allow a parent to create chores with: name, description, frequency (Daily or Weekly), coin reward value, emoji icon, and optional kid assignment.
 - **FR-004**: System MUST allow a parent to edit and delete chores.
 - **FR-005**: System MUST display a personalized kid dashboard showing a greeting with the kid's name and emoji, count of remaining chores for today, and a list of chore cards.
@@ -91,6 +91,7 @@ Kids (and parents) navigate to the Leaderboard tab and see a ranked list of fami
 - **FR-017**: System MUST allow a family to export their data (chores, kids, history) and delete their family account.
 - **FR-018**: System MUST NOT send personal family data to third-party analytics by default.
 - **FR-019**: System MUST be fully functional when self-hosted.
+- **FR-020**: System MUST provide a parent-only Activity Log page listing recent chore completions and prize redemptions for the family in reverse-chronological order, showing the kid's name, event type, item name, coins involved, and timestamp.
 
 ### Key Entities
 
@@ -101,7 +102,8 @@ Kids (and parents) navigate to the Leaderboard tab and see a ranked list of fami
 - **Chore Completion**: A record that a specific kid completed a specific chore at a specific time, awarding a specific coin amount.
 - **Prize**: A reward created by a parent with a name, description, and coin cost. Available to all kids in the family.
 - **Prize Redemption**: A record that a specific kid redeemed a specific prize, deducting coins, at a specific time.
-- **Leaderboard Entry**: A derived ranking of kids by coins earned within the current reset period.
+- **Leaderboard Entry**: A derived (not stored) ranking of kids by coins earned within the current reset period, computed at query time from ChoreCompletion records.
+- **Session**: A server-side session record that maps a secure cookie token to a parent or kid, tracking their role and expiry for authentication purposes.
 
 ## Success Criteria *(mandatory)*
 
@@ -117,10 +119,10 @@ Kids (and parents) navigate to the Leaderboard tab and see a ranked list of fami
 ## Assumptions
 
 - Users access the application via a modern web browser on desktop or mobile; native mobile apps are out of scope for the MVP.
-- Authentication for the MVP uses simple email/password for parents; kids log in via a family-scoped PIN or parent-managed session rather than a separate email account.
+- Authentication for the MVP uses simple email/password for parents; kids log in via a family-scoped PIN and a `familyCode` (a short code derived from the family's unique ID, displayed on the parent settings page for sharing with kids) rather than a separate email account.
 - The visual design follows the warm beige/cream background with orange/amber accents and green completion states shown in the mockup.
 - The MVP targets a single-family experience; multi-family or social features are out of scope.
 - No email or push notification system is required for the MVP; parents check activity within the app.
 - The application stores data in a local database suitable for self-hosting (e.g., SQLite or PostgreSQL); cloud-managed database services are not required.
 - Chore scheduling is limited to Daily and Weekly frequencies for the MVP; custom schedules are out of scope.
-- The leaderboard reset cadence defaults to weekly; parent configuration of the cadence is a stretch goal within the MVP.
+- The leaderboard reset cadence defaults to weekly; parent configuration of the reset day is included in the MVP via the family settings page (FR-015).

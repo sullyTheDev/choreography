@@ -71,15 +71,21 @@ The dev server starts at **http://localhost:5173** with hot reload.
 ## 6. Running Tests
 
 ```bash
-# Unit + integration tests
+# Unit + integration tests (Vitest)
 npm test
 
-# E2E tests (requires dev server running)
+# Type checking
+npm run check
+
+# E2E tests (requires dev server running at http://localhost:5173)
 npm run test:e2e
 
-# Accessibility checks (runs with E2E)
-npm run test:e2e -- --grep "a11y"
+# Accessibility checks only (axe-core via Playwright)
+npm run test:e2e -- --grep "Accessibility"
 ```
+
+> **Note**: Integration tests use an in-memory SQLite database and do not require a running server.
+> E2E tests require `npm run dev` or `npm run preview` to be running first.
 
 ## 7. Environment Variables
 

@@ -59,6 +59,7 @@ src/
 │   │   ├── db/
 │   │   │   ├── schema.ts          # Drizzle ORM code-first schema
 │   │   │   ├── index.ts           # DB connection (SQLite driver)
+│   │   │   ├── utils.ts           # ULID generation, periodKey computation
 │   │   │   └── seed.ts            # Optional dev seed data
 │   │   ├── auth.ts                # Session + password helpers
 │   │   └── logger.ts              # Pino structured logger
@@ -96,6 +97,9 @@ src/
 │   │       │   └── +page.server.ts
 │   │       ├── kids/
 │   │       │   ├── +page.svelte   # Parent kid management
+│   │       │   └── +page.server.ts
+│   │       ├── activity/
+│   │       │   ├── +page.svelte   # Parent activity log (completions + redemptions)
 │   │       │   └── +page.server.ts
 │   │       └── settings/
 │   │           ├── +page.svelte   # Export/delete, leaderboard config
