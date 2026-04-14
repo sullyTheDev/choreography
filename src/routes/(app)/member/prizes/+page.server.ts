@@ -1,8 +1,8 @@
 import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
-import { eq, and, sum } from 'drizzle-orm';
+import { eq, and, sum, exists } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { prizes, prizeRedemptions, choreCompletions, members, familyMembers } from '$lib/server/db/schema.js';
+import { prizes, prizeAssignments, prizeRedemptions, choreCompletions, members, familyMembers } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -26,7 +26,21 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		db
 			.select()
 			.from(prizes)
-			.where(and(eq(prizes.familyId, session.familyId), eq(prizes.isActive, true))),
+			.where(
+				and(
+					eq(prizes.familyId, session.familyId),
+					eq(prizes.isActive, true),
+					// Show prize only if an assignment exists for this member
+					exists(
+						db.select().from(prizeAssignments).where(
+							and(
+								eq(prizeAssignments.prizeId, prizes.id),
+								eq(prizeAssignments.memberId, effectiveMemberId)
+							)
+						)
+					)
+				)
+			),
 		db
 			.select({ total: sum(choreCompletions.coinsAwarded) })
 			.from(choreCompletions)

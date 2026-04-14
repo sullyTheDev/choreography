@@ -2,7 +2,7 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { prizes } from '$lib/server/db/schema.js';
+import { prizes, prizeAssignments, members, familyMembers } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -10,10 +10,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const { session } = locals;
 	if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
-	const allPrizes = await db
-		.select()
-		.from(prizes)
-		.where(and(eq(prizes.familyId, session.familyId), eq(prizes.isActive, true)));
+	const [allPrizes, allMembers, allAssignments] = await Promise.all([
+		db.select().from(prizes).where(and(eq(prizes.familyId, session.familyId), eq(prizes.isActive, true))),
+		db
+			.select({ id: members.id, displayName: members.displayName, avatarEmoji: members.avatarEmoji })
+			.from(familyMembers)
+			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.where(and(eq(familyMembers.familyId, session.familyId), eq(members.isActive, true))),
+		db.select().from(prizeAssignments)
+	]);
+
+	// Build a map of prizeId -> assignedMemberIds
+	const assignmentMap = new Map<string, string[]>();
+	for (const row of allAssignments) {
+		const existing = assignmentMap.get(row.prizeId) ?? [];
+		existing.push(row.memberId);
+		assignmentMap.set(row.prizeId, existing);
+	}
 
 	return {
 		prizes: allPrizes.map((p) => ({
@@ -21,8 +34,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			title: p.title,
 			description: p.description,
 			emoji: p.emoji,
-			coinCost: p.coinCost
-		}))
+			coinCost: p.coinCost,
+			assignedMemberIds: assignmentMap.get(p.id) ?? []
+		})),
+		members: allMembers
 	};
 };
 
@@ -53,6 +68,14 @@ export const actions: Actions = {
 			createdAt: now()
 		});
 
+		// Insert member assignments if any were selected
+		const memberIds = data.getAll('memberIds').map(String).filter(Boolean);
+		if (memberIds.length > 0) {
+			await db.insert(prizeAssignments).values(
+				memberIds.map((memberId) => ({ prizeId: id, memberId }))
+			);
+		}
+
 		logger.info({ prizeId: id, familyId: session.familyId }, 'Prize created');
 		return { success: true };
 	},
@@ -77,6 +100,15 @@ export const actions: Actions = {
 			.update(prizes)
 			.set({ title, description, emoji, coinCost })
 			.where(and(eq(prizes.id, prizeId), eq(prizes.familyId, session.familyId)));
+
+		// Replace assignments: delete old, insert new
+		await db.delete(prizeAssignments).where(eq(prizeAssignments.prizeId, prizeId));
+		const memberIds = data.getAll('memberIds').map(String).filter(Boolean);
+		if (memberIds.length > 0) {
+			await db.insert(prizeAssignments).values(
+				memberIds.map((memberId) => ({ prizeId, memberId }))
+			);
+		}
 
 		logger.info({ prizeId, familyId: session.familyId }, 'Prize updated');
 		return { success: true };

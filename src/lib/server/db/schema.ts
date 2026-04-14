@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, uniqueIndex, index, primaryKey } from 'drizzle-orm/sqlite-core';
 
 export const families = sqliteTable('families', {
 	id: text('id').primaryKey(), // ULID
@@ -98,6 +98,22 @@ export const prizes = sqliteTable(
 		createdAt: text('created_at').notNull()
 	},
 	(table) => [index('idx_prize_family').on(table.familyId, table.isActive)]
+);
+
+export const prizeAssignments = sqliteTable(
+	'prize_assignments',
+	{
+		prizeId: text('prize_id')
+			.notNull()
+			.references(() => prizes.id),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => members.id)
+	},
+	(table) => [
+		primaryKey({ columns: [table.prizeId, table.memberId] }),
+		index('idx_prize_assignment_member').on(table.memberId)
+	]
 );
 
 export const prizeRedemptions = sqliteTable(

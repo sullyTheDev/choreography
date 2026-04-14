@@ -71,6 +71,20 @@ if (result.type !== 'failure') showCreate = false;
 <span>Coin Cost</span>
 <input id="coinCost" name="coinCost" type="number" class="input" min="1" placeholder="e.g. 50" required />
 </label>
+{#if data.members.length > 0}
+<fieldset class="space-y-1">
+	<legend class="text-sm font-medium">Who can see this?</legend>
+	<p class="text-xs text-surface-500">Uncheck members to hide this prize from them.</p>
+	<div class="flex flex-wrap gap-3 pt-1">
+		{#each data.members as m}
+			<label class="flex items-center gap-1.5 cursor-pointer">
+				<input type="checkbox" name="memberIds" value={m.id} checked class="checkbox" />
+				<span class="text-sm">{m.avatarEmoji} {m.displayName}</span>
+			</label>
+		{/each}
+	</div>
+</fieldset>
+{/if}
 <div class="flex gap-2">
 <button type="submit" class="btn preset-filled-primary-500" disabled={submitting}>Create Prize</button>
 <button type="button" class="btn hover:preset-tonal" onclick={() => (showCreate = false)}>Cancel</button>
@@ -91,6 +105,15 @@ if (result.type !== 'failure') showCreate = false;
 <strong class="text-xl font-semibold">{prize.title}</strong>
 {#if prize.description}
 <p class="text-sm text-surface-600-400 m-0">{prize.description}</p>
+{/if}
+{#if prize.assignedMemberIds.length === 0}
+	<p class="text-xs text-surface-500 m-0">Not visible to anyone</p>
+{:else if prize.assignedMemberIds.length === data.members.length}
+	<p class="text-xs text-surface-500 m-0">Visible to everyone</p>
+{:else}
+	<p class="text-xs text-surface-500 m-0">
+		Visible to: {data.members.filter(m => prize.assignedMemberIds.includes(m.id)).map(m => `${m.avatarEmoji} ${m.displayName}`).join(', ')}
+	</p>
 {/if}
 </div>
 <div class="flex items-center gap-2 shrink-0">
@@ -143,6 +166,26 @@ if (result.type !== 'failure') cancelEdit();
 <span>Coin Cost</span>
 <input id="edit-cost-{prize.id}" name="coinCost" type="number" class="input" min="1" value={prize.coinCost} required />
 </label>
+{#if data.members.length > 0}
+<fieldset class="space-y-1">
+	<legend class="text-sm font-medium">Who can see this?</legend>
+	<p class="text-xs text-surface-500">Leave all unchecked to show to everyone.</p>
+	<div class="flex flex-wrap gap-3 pt-1">
+		{#each data.members as m}
+			<label class="flex items-center gap-1.5 cursor-pointer">
+				<input
+					type="checkbox"
+					name="memberIds"
+					value={m.id}
+					checked={prize.assignedMemberIds.includes(m.id)}
+					class="checkbox"
+				/>
+				<span class="text-sm">{m.avatarEmoji} {m.displayName}</span>
+			</label>
+		{/each}
+	</div>
+</fieldset>
+{/if}
 <div class="flex gap-2">
 <button type="submit" class="btn preset-filled-primary-500" disabled={submitting}>Save Changes</button>
 <button type="button" class="btn hover:preset-tonal" onclick={cancelEdit}>Cancel</button>
