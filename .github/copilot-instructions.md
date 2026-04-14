@@ -1,6 +1,9 @@
 ﻿# choreography Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-09
+Auto-generated from all feature plans. Last updated: 2026-04-13
+
+## UI System (Constitution Principle VI — enforced)
+All new components, interactive elements, and UX patterns MUST use **Skeleton v4** (`@skeletonlabs/skeleton-svelte`) + **Tailwind CSS v4** first. Custom HTML/CSS is only acceptable when Skeleton provides no equivalent. Do NOT use Flowbite, DaisyUI, or similar alongside Skeleton.
 
 ## Active Technologies
 - [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION] + [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION] (002-skeleton-ui-migration)
