@@ -2,26 +2,27 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, kids } from '$lib/server/db/schema.js';
+import { chores, members, familyMembers } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { session } = locals;
-	if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+	if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
-	const [allChores, activeKids] = await Promise.all([
+	const [allChores, activeMembers] = await Promise.all([
 		db
 			.select()
 			.from(chores)
 			.where(and(eq(chores.familyId, session.familyId), eq(chores.isActive, true))),
 		db
-			.select({ id: kids.id, displayName: kids.displayName })
-			.from(kids)
-			.where(and(eq(kids.familyId, session.familyId), eq(kids.isActive, true)))
+			.select({ id: members.id, displayName: members.displayName })
+			.from(familyMembers)
+			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.where(and(eq(familyMembers.familyId, session.familyId), eq(members.isActive, true)))
 	]);
 
-	const kidMap = new Map(activeKids.map((k) => [k.id, k]));
+	const memberMap = new Map(activeMembers.map((m) => [m.id, m]));
 	const choresWithKid = allChores.map((chore) => ({
 		id: chore.id,
 		emoji: chore.emoji,
@@ -29,16 +30,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 		description: chore.description,
 		frequency: chore.frequency,
 		coinValue: chore.coinValue,
-		assignedKid: chore.assignedKidId ? (kidMap.get(chore.assignedKidId) ?? null) : null
+		assignedMember: chore.assignedMemberId ? (memberMap.get(chore.assignedMemberId) ?? null) : null
 	}));
 
-	return { chores: choresWithKid, kids: activeKids };
+	return { chores: choresWithKid, members: activeMembers };
 };
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const title = String(data.get('title') ?? '').trim();
@@ -46,7 +47,7 @@ export const actions: Actions = {
 		const emoji = String(data.get('emoji') ?? '').trim();
 		const frequency = String(data.get('frequency') ?? '') as 'daily' | 'weekly';
 		const coinValue = parseInt(String(data.get('coinValue') ?? '0'), 10);
-		const assignedKidId = String(data.get('assignedKidId') ?? '').trim() || null;
+		const assignedMemberId = String(data.get('assignedMemberId') ?? '').trim() || null;
 
 		if (!title) return fail(400, { error: 'Title is required' });
 		if (!emoji) return fail(400, { error: 'Emoji is required' });
@@ -64,7 +65,7 @@ export const actions: Actions = {
 			emoji,
 			frequency,
 			coinValue,
-			assignedKidId,
+			assignedMemberId,
 			isActive: true,
 			createdAt: now()
 		});
@@ -75,7 +76,7 @@ export const actions: Actions = {
 
 	update: async ({ request, locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const choreId = String(data.get('choreId') ?? '').trim();
@@ -84,7 +85,7 @@ export const actions: Actions = {
 		const emoji = String(data.get('emoji') ?? '').trim();
 		const frequency = String(data.get('frequency') ?? '') as 'daily' | 'weekly';
 		const coinValue = parseInt(String(data.get('coinValue') ?? '0'), 10);
-		const assignedKidId = String(data.get('assignedKidId') ?? '').trim() || null;
+		const assignedMemberId = String(data.get('assignedMemberId') ?? '').trim() || null;
 
 		if (!choreId) return fail(400, { error: 'Chore ID is required' });
 		if (!title) return fail(400, { error: 'Title is required' });
@@ -96,7 +97,7 @@ export const actions: Actions = {
 
 		await db
 			.update(chores)
-			.set({ title, description, emoji, frequency, coinValue, assignedKidId })
+			.set({ title, description, emoji, frequency, coinValue, assignedMemberId })
 			.where(and(eq(chores.id, choreId), eq(chores.familyId, session.familyId)));
 
 		logger.info({ choreId, familyId: session.familyId }, 'Chore updated');
@@ -105,7 +106,7 @@ export const actions: Actions = {
 
 	delete: async ({ request, locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const choreId = String(data.get('choreId') ?? '').trim();

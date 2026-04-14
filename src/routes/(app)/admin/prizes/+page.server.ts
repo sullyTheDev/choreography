@@ -8,7 +8,7 @@ import { logger } from '$lib/server/logger.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { session } = locals;
-	if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+	if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 	const allPrizes = await db
 		.select()
@@ -20,6 +20,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			id: p.id,
 			title: p.title,
 			description: p.description,
+			emoji: p.emoji,
 			coinCost: p.coinCost
 		}))
 	};
@@ -28,11 +29,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const title = String(data.get('title') ?? '').trim();
 		const description = String(data.get('description') ?? '').trim();
+		const emoji = String(data.get('emoji') ?? '').trim() || 'noto:wrapped-gift';
 		const coinCost = parseInt(String(data.get('coinCost') ?? '0'), 10);
 
 		if (!title) return fail(400, { error: 'Title is required' });
@@ -45,6 +47,7 @@ export const actions: Actions = {
 			familyId: session.familyId,
 			title,
 			description,
+			emoji,
 			coinCost,
 			isActive: true,
 			createdAt: now()
@@ -56,12 +59,13 @@ export const actions: Actions = {
 
 	update: async ({ request, locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const prizeId = String(data.get('prizeId') ?? '').trim();
 		const title = String(data.get('title') ?? '').trim();
 		const description = String(data.get('description') ?? '').trim();
+		const emoji = String(data.get('emoji') ?? '').trim() || 'noto:wrapped-gift';
 		const coinCost = parseInt(String(data.get('coinCost') ?? '0'), 10);
 
 		if (!prizeId) return fail(400, { error: 'Prize ID is required' });
@@ -71,7 +75,7 @@ export const actions: Actions = {
 
 		await db
 			.update(prizes)
-			.set({ title, description, coinCost })
+			.set({ title, description, emoji, coinCost })
 			.where(and(eq(prizes.id, prizeId), eq(prizes.familyId, session.familyId)));
 
 		logger.info({ prizeId, familyId: session.familyId }, 'Prize updated');
@@ -80,7 +84,7 @@ export const actions: Actions = {
 
 	delete: async ({ request, locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const prizeId = String(data.get('prizeId') ?? '').trim();

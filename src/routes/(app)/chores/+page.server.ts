@@ -2,7 +2,7 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, choreCompletions, kids } from '$lib/server/db/schema.js';
+import { chores, choreCompletions, members, familyMembers } from '$lib/server/db/schema.js';
 import { ulid, now, getPeriodKey } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -10,23 +10,22 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const { session } = locals;
 	if (!session) error(401, 'Unauthorized');
 
-	const { activeKidId, kids: layoutKids } = await parent();
+	const { activeMemberId, members: layoutMembers } = await parent();
 
-	// The active kid — from URL param or layout default
-	const kidParam = url.searchParams.get('kid');
-	const resolvedKidId =
-		session.userRole === 'kid'
-			? session.userId
-			: kidParam && layoutKids.some((k) => k.id === kidParam)
-				? kidParam
-				: (activeKidId ?? null);
+	const memberParam = url.searchParams.get('member');
+	const resolvedMemberId =
+		session.memberRole === 'member'
+			? session.memberId
+			: memberParam && layoutMembers.some((m) => m.id === memberParam)
+				? memberParam
+				: (activeMemberId ?? null);
 
-	if (!resolvedKidId) {
-		return { greeting: 'Hey there! 👋', remainingCount: 0, chores: [], activeKidId: null };
+	if (!resolvedMemberId) {
+		return { greeting: 'Hey there! 👋', remainingCount: 0, chores: [], activeMemberId: null };
 	}
 
-	const [kid] = await db.select().from(kids).where(eq(kids.id, resolvedKidId)).limit(1);
-	if (!kid) error(404, 'Kid not found');
+	const member = layoutMembers.find((m) => m.id === resolvedMemberId);
+	if (!member) error(404, 'Member not found');
 
 	const today = new Date();
 
@@ -37,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 		.where(and(eq(chores.familyId, session.familyId), eq(chores.isActive, true)));
 
 	const visibleChores = familyChores.filter(
-		(c) => c.assignedKidId === null || c.assignedKidId === resolvedKidId
+		(c) => c.assignedMemberId === null || c.assignedMemberId === resolvedMemberId
 	);
 
 	// Get all completions by this kid this relevant period
@@ -45,7 +44,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const completionRows = await db
 		.select({ choreId: choreCompletions.choreId, periodKey: choreCompletions.periodKey })
 		.from(choreCompletions)
-		.where(eq(choreCompletions.kidId, resolvedKidId));
+		.where(eq(choreCompletions.memberId, resolvedMemberId));
 
 	const completedSet = new Set(
 		completionRows
@@ -69,9 +68,9 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	});
 
 	const remainingCount = choreList.filter((c) => !c.isCompleted).length;
-	const greeting = `Hey ${kid.avatarEmoji} ${kid.displayName}!`;
+	const greeting = `Hey ${member.avatarEmoji} ${member.displayName}!`;
 
-	return { greeting, remainingCount, chores: choreList, activeKidId: resolvedKidId };
+	return { greeting, remainingCount, chores: choreList, activeMemberId: resolvedMemberId };
 };
 
 export const actions: Actions = {
@@ -81,13 +80,27 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const choreId = String(data.get('choreId') ?? '').trim();
-		const kidId = String(data.get('kidId') ?? '').trim();
+		const memberId = String(data.get('memberId') ?? '').trim();
 
 		if (!choreId) return fail(400, { error: 'Chore ID is required' });
 
-		// Determine which kid is marking the chore complete
-		const effectiveKidId = session.userRole === 'kid' ? session.userId : kidId;
-		if (!effectiveKidId) return fail(400, { error: 'Kid ID is required' });
+		const effectiveMemberId = session.memberRole === 'member' ? session.memberId : memberId;
+		if (!effectiveMemberId) return fail(400, { error: 'Member ID is required' });
+
+		const [targetMember] = await db
+			.select({ id: members.id })
+			.from(familyMembers)
+			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.where(
+				and(
+					eq(familyMembers.familyId, session.familyId),
+					eq(familyMembers.memberId, effectiveMemberId),
+					eq(members.isActive, true)
+				)
+			)
+			.limit(1);
+
+		if (!targetMember) return fail(403, { error: 'Invalid active member for this family' });
 
 		// Load the chore and verify it belongs to this family
 		const [chore] = await db
@@ -99,8 +112,8 @@ export const actions: Actions = {
 		if (!chore || !chore.isActive) return fail(404, { error: 'Chore not found' });
 
 		// Verify the chore is accessible to this kid
-		if (chore.assignedKidId !== null && chore.assignedKidId !== effectiveKidId) {
-			return fail(403, { error: 'This chore is assigned to a different kid' });
+		if (chore.assignedMemberId !== null && chore.assignedMemberId !== effectiveMemberId) {
+			return fail(403, { error: 'This chore is assigned to a different member' });
 		}
 
 		const today = new Date();
@@ -113,7 +126,7 @@ export const actions: Actions = {
 			.where(
 				and(
 					eq(choreCompletions.choreId, choreId),
-					eq(choreCompletions.kidId, effectiveKidId),
+					eq(choreCompletions.memberId, effectiveMemberId),
 					eq(choreCompletions.periodKey, periodKey)
 				)
 			)
@@ -123,25 +136,28 @@ export const actions: Actions = {
 			return fail(409, { error: 'Already completed this chore for the current period' });
 		}
 
-		// Compute coin balance for this kid to use as snapshot value
-		const [earnedRow] = await db
-			.select({ total: sum(choreCompletions.coinsAwarded) })
-			.from(choreCompletions)
-			.where(eq(choreCompletions.kidId, effectiveKidId));
-
 		const id = ulid();
-		await db.insert(choreCompletions).values({
-			id,
-			choreId,
-			kidId: effectiveKidId,
-			familyId: session.familyId,
-			coinsAwarded: chore.coinValue,
-			periodKey,
-			completedAt: now()
-		});
+		try {
+			await db.insert(choreCompletions).values({
+				id,
+				choreId,
+				memberId: effectiveMemberId,
+				familyId: session.familyId,
+				coinsAwarded: chore.coinValue,
+				periodKey,
+				completedAt: now()
+			});
+		} catch (err) {
+			const message = err instanceof Error ? err.message : String(err);
+			if (message.includes('uq_completion_period') || message.includes('UNIQUE constraint failed')) {
+				return fail(409, { error: 'Already completed this chore for the current period' });
+			}
+			logger.error({ err, choreId, memberId: effectiveMemberId }, 'Failed to record chore completion');
+			return fail(500, { error: 'Unable to complete chore right now. Please try again.' });
+		}
 
 		logger.info(
-			{ completionId: id, choreId, kidId: effectiveKidId, coins: chore.coinValue },
+			{ completionId: id, choreId, memberId: effectiveMemberId, coins: chore.coinValue },
 			'Chore completed'
 		);
 

@@ -1,4 +1,5 @@
-﻿<script lang="ts">
+<script lang="ts">
+import Icon from '@iconify/svelte';
 import type { PageData, ActionData } from './$types.js';
 import ChoreCard from '$lib/components/ChoreCard.svelte';
 
@@ -13,7 +14,7 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 {data.remainingCount} chore{data.remainingCount === 1 ? '' : 's'} left today
 </p>
 {:else if data.chores.length > 0}
-<p class="font-semibold text-success-600-400">🎉 All done! Great work!</p>
+<p class="font-semibold text-success-600-400 flex items-center gap-2"><Icon icon="noto:partying-face" class="h-5 w-5" /> All done! Great work!</p>
 {/if}
 </div>
 
@@ -35,7 +36,7 @@ frequency={chore.frequency}
 coinValue={chore.coinValue}
 assignedKidName={chore.assignedKidName}
 isCompleted={chore.isCompleted}
-activeKidId={data.activeKidId}
+activeMemberId={data.activeMemberId}
 />
 {/each}
 </div>

@@ -6,8 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	parents,
-	kids,
+	members,
+	familyMembers,
 	chores,
 	choreCompletions
 } from '../../src/lib/server/db/schema.js';
@@ -24,15 +24,15 @@ function makeFormData(data: Record<string, string>): FormData {
 	return fd;
 }
 
-function kidSession(familyId: string, kidId: string) {
+function kidSession(familyId: string, memberId: string) {
 	return {
 		id: 'sess-kid-1',
 		familyId,
-		userId: kidId,
-		userRole: 'kid' as const,
+		memberId: memberId,
+		memberRole: 'member' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
-		user: { id: kidId, displayName: 'Emma', avatarEmoji: '👧', familyId }
+		user: { id: memberId, displayName: 'Emma', avatarEmoji: '👧', familyId }
 	};
 }
 
@@ -47,7 +47,7 @@ function mockKidEvent(session: ReturnType<typeof kidSession>, formDataObj: Recor
 async function seedChoreSetup() {
 	const familyId = ulid();
 	const parentId = ulid();
-	const kidId = ulid();
+	const memberId = ulid();
 	const choreId = ulid();
 
 	await testDb.insert(families).values({
@@ -56,22 +56,37 @@ async function seedChoreSetup() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(parents).values({
+	await testDb.insert(members).values({
 		id: parentId,
-		familyId,
+		displayName: 'Test Parent',
+		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
 		passwordHash: await hashPassword('password123'),
-		displayName: 'Test Parent',
+		pin: null,
+		isActive: true,
 		createdAt: now()
 	});
-	await testDb.insert(kids).values({
-		id: kidId,
+	await testDb.insert(familyMembers).values({
+		memberId: parentId,
 		familyId,
+		role: 'admin',
+		joinedAt: now()
+	});
+	await testDb.insert(members).values({
+		id: memberId,
 		displayName: 'Emma',
 		avatarEmoji: '👧',
+		email: null,
+		passwordHash: null,
 		pin: 'hashed',
 		isActive: true,
 		createdAt: now()
+	});
+	await testDb.insert(familyMembers).values({
+		memberId,
+		familyId,
+		role: 'member',
+		joinedAt: now()
 	});
 	await testDb.insert(chores).values({
 		id: choreId,
@@ -81,21 +96,21 @@ async function seedChoreSetup() {
 		emoji: '🛏️',
 		frequency: 'daily',
 		coinValue: 10,
-		assignedKidId: null,
+		assignedMemberId: null,
 		isActive: true,
 		createdAt: now()
 	});
 
-	return { familyId, parentId, kidId, choreId };
+	return { familyId, parentId, memberId, choreId };
 }
 
 describe('chores — complete action', () => {
 	it('records a chore completion and awards coins', async () => {
-		const { familyId, kidId, choreId } = await seedChoreSetup();
+		const { familyId, memberId, choreId } = await seedChoreSetup();
 		const actions = await getActions();
 
 		const result = await actions.complete(
-			mockKidEvent(kidSession(familyId, kidId), { choreId })
+			mockKidEvent(kidSession(familyId, memberId), { choreId })
 		);
 
 		expect(result).toMatchObject({ success: true });
@@ -103,21 +118,21 @@ describe('chores — complete action', () => {
 		const completions = await testDb.select().from(choreCompletions);
 		expect(completions).toHaveLength(1);
 		expect(completions[0].choreId).toBe(choreId);
-		expect(completions[0].kidId).toBe(kidId);
+		expect(completions[0].memberId).toBe(memberId);
 		expect(completions[0].coinsAwarded).toBe(10);
 		expect(completions[0].periodKey).toMatch(/^\d{4}-\d{2}-\d{2}$/); // daily format
 	});
 
 	it('prevents duplicate completions in the same period', async () => {
-		const { familyId, kidId, choreId } = await seedChoreSetup();
+		const { familyId, memberId, choreId } = await seedChoreSetup();
 		const actions = await getActions();
 
 		// First completion — should succeed
-		await actions.complete(mockKidEvent(kidSession(familyId, kidId), { choreId }));
+		await actions.complete(mockKidEvent(kidSession(familyId, memberId), { choreId }));
 
 		// Second completion in same period — should fail
 		const result = await actions.complete(
-			mockKidEvent(kidSession(familyId, kidId), { choreId })
+			mockKidEvent(kidSession(familyId, memberId), { choreId })
 		);
 
 		expect((result as { status: number }).status).toBe(409);
@@ -133,26 +148,40 @@ describe('chores — complete action', () => {
 
 		// Create a second kid
 		const kid2Id = ulid();
-		await testDb.insert(kids).values({
+		await testDb.insert(members).values({
 			id: kid2Id,
-			familyId,
 			displayName: 'Jake',
 			avatarEmoji: '👦',
+			email: null,
+			passwordHash: null,
 			pin: 'hashed',
 			isActive: true,
 			createdAt: now()
 		});
+		await testDb.insert(familyMembers).values({
+			memberId: kid2Id,
+			familyId,
+			role: 'member',
+			joinedAt: now()
+		});
 
 		// Create a chore assigned only to kid2
 		const kid1Id = ulid();
-		await testDb.insert(kids).values({
+		await testDb.insert(members).values({
 			id: kid1Id,
-			familyId,
 			displayName: 'Emma2',
 			avatarEmoji: '👧',
+			email: null,
+			passwordHash: null,
 			pin: 'hashed',
 			isActive: true,
 			createdAt: now()
+		});
+		await testDb.insert(familyMembers).values({
+			memberId: kid1Id,
+			familyId,
+			role: 'member',
+			joinedAt: now()
 		});
 
 		const assignedChoreId = ulid();
@@ -164,7 +193,7 @@ describe('chores — complete action', () => {
 			emoji: '🐕',
 			frequency: 'daily',
 			coinValue: 5,
-			assignedKidId: kid2Id, // assigned to kid2
+			assignedMemberId: kid2Id, // assigned to kid2
 			isActive: true,
 			createdAt: now()
 		});
@@ -179,18 +208,18 @@ describe('chores — complete action', () => {
 	});
 
 	it('rejects missing choreId', async () => {
-		const { familyId, kidId } = await seedChoreSetup();
+		const { familyId, memberId } = await seedChoreSetup();
 		const actions = await getActions();
 
 		const result = await actions.complete(
-			mockKidEvent(kidSession(familyId, kidId), { choreId: '' })
+			mockKidEvent(kidSession(familyId, memberId), { choreId: '' })
 		);
 
 		expect((result as { status: number }).status).toBe(400);
 	});
 
 	it('awards correct coin amount matching chore coinValue', async () => {
-		const { familyId, kidId } = await seedChoreSetup();
+		const { familyId, memberId } = await seedChoreSetup();
 
 		// Add a weekly chore with 25 coins
 		const weeklyChoreId = ulid();
@@ -202,13 +231,13 @@ describe('chores — complete action', () => {
 			emoji: '📚',
 			frequency: 'weekly',
 			coinValue: 25,
-			assignedKidId: null,
+			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		});
 
 		const actions = await getActions();
-		await actions.complete(mockKidEvent(kidSession(familyId, kidId), { choreId: weeklyChoreId }));
+		await actions.complete(mockKidEvent(kidSession(familyId, memberId), { choreId: weeklyChoreId }));
 
 		const completions = await testDb
 			.select()

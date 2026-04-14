@@ -1,76 +1,61 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { and, eq } from 'drizzle-orm';
-import { db } from '$lib/server/db/index.js';
-import { parents, kids, families } from '$lib/server/db/schema.js';
 import {
 	verifyPassword,
 	verifyPin,
 	createSession,
 	SESSION_COOKIE_NAME,
 	sessionCookieOptions,
-	deleteSession
+	deleteSession,
+	getMemberByEmail,
+	getMemberByDisplayName,
+	getMemberFamilyId
 } from '$lib/server/auth.js';
-import { familyCode } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 import type { Actions, PageServerLoad } from './$types.js';
 
 export const load: PageServerLoad = ({ locals }) => {
-	if (locals.session) redirect(302, locals.session.userRole === 'parent' ? '/admin/chores' : '/chores');
+	if (locals.session) redirect(302, locals.session.memberRole === 'admin' ? '/admin/chores' : '/chores');
 };
 
 export const actions: Actions = {
 	login: async ({ request, cookies }) => {
 		const data = await request.formData();
-		const role = String(data.get('role') ?? 'parent') as 'parent' | 'kid';
+		const role = String(data.get('role') ?? 'admin') as 'admin' | 'member';
 
-		if (role === 'parent') {
+		if (role === 'admin') {
 			const email = String(data.get('email') ?? '').trim().toLowerCase();
 			const password = String(data.get('password') ?? '');
 
 			if (!email || !password) return fail(400, { error: 'Email and password are required.' });
 
-			const [parent] = await db.select().from(parents).where(eq(parents.email, email)).limit(1);
-			if (!parent || !(await verifyPassword(password, parent.passwordHash))) {
+			const member = await getMemberByEmail(email);
+			if (!member || !member.passwordHash || !(await verifyPassword(password, member.passwordHash))) {
 				return fail(401, { error: 'Invalid email or password.' });
 			}
+			const familyId = await getMemberFamilyId(member.id);
+			if (!familyId) return fail(401, { error: 'Unable to resolve family membership.' });
 
-			const sessionToken = await createSession({ familyId: parent.familyId, userId: parent.id, userRole: 'parent' });
+			const sessionToken = await createSession({ familyId, memberId: member.id, memberRole: 'admin' });
 			cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
 
-			logger.info({ parentId: parent.id }, 'parent login');
+			logger.info({ memberId: member.id }, 'admin login');
 			redirect(302, '/admin/chores');
 		} else {
-			// Kid login: familyCode + PIN
-			const code = String(data.get('familyCode') ?? '').trim().toUpperCase();
+			const displayName = String(data.get('displayName') ?? '').trim();
 			const pin = String(data.get('pin') ?? '').trim();
 
-			if (!code || !pin) return fail(400, { error: 'Family code and PIN are required.' });
-
-			// Find family by familyCode (last 8 chars of ULID)
-			const allFamilies = await db.select().from(families);
-			const family = allFamilies.find((f) => familyCode(f.id) === code);
-			if (!family) return fail(401, { error: 'Invalid family code.' });
-
-			// Find active kids in the family and check PIN against each
-			const activeKids = await db
-				.select()
-				.from(kids)
-				.where(and(eq(kids.familyId, family.id), eq(kids.isActive, true)));
-
-			let matchedKid: (typeof activeKids)[0] | undefined;
-			for (const kid of activeKids) {
-				if (await verifyPin(pin, kid.pin)) {
-					matchedKid = kid;
-					break;
-				}
+			if (!displayName || !pin) return fail(400, { error: 'Name and PIN are required.' });
+			const member = await getMemberByDisplayName(displayName);
+			if (!member || !member.pin || !(await verifyPin(pin, member.pin))) {
+				return fail(401, { error: 'Invalid name or PIN.' });
 			}
+			const familyId = await getMemberFamilyId(member.id);
+			if (!familyId) return fail(401, { error: 'Unable to resolve family membership.' });
 
-			if (!matchedKid) return fail(401, { error: 'Invalid PIN.' });
-
-			const sessionToken = await createSession({ familyId: family.id, userId: matchedKid.id, userRole: 'kid' });
+			const sessionToken = await createSession({ familyId, memberId: member.id, memberRole: 'member' });
 			cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
 
-			logger.info({ kidId: matchedKid.id }, 'kid login');
+			logger.info({ memberId: member.id }, 'member login');
 			redirect(302, '/chores');
 		}
 	},

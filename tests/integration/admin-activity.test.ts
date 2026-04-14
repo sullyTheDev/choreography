@@ -6,8 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	parents,
-	kids,
+	members,
+	familyMembers,
 	chores,
 	prizes,
 	choreCompletions,
@@ -19,27 +19,27 @@ import { hashPassword } from '../../src/lib/server/auth.js';
 const getLoad = async () =>
 	(await import('../../src/routes/(app)/admin/activity/+page.server.js')).load;
 
-function parentSession(familyId: string, userId: string) {
+function parentSession(familyId: string, memberId: string) {
 	return {
 		id: 'sess-1',
 		familyId,
-		userId,
-		userRole: 'parent' as const,
+		memberId,
+		memberRole: 'admin' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
-		user: { id: userId, displayName: 'Test Parent', familyId }
+		user: { id: memberId, displayName: 'Test Parent', familyId }
 	};
 }
 
-function kidSession(familyId: string, kidId: string) {
+function kidSession(familyId: string, memberId: string) {
 	return {
 		id: 'sess-kid',
 		familyId,
-		userId: kidId,
-		userRole: 'kid' as const,
+		memberId: memberId,
+		memberRole: 'member' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
-		user: { id: kidId, displayName: 'Emma', avatarEmoji: '👧', familyId }
+		user: { id: memberId, displayName: 'Emma', avatarEmoji: '👧', familyId }
 	};
 }
 
@@ -55,7 +55,7 @@ function mockLoadEvent(session: any, searchParams: Record<string, string> = {}):
 async function seedActivityData() {
 	const familyId = ulid();
 	const parentId = ulid();
-	const kidId = ulid();
+	const memberId = ulid();
 	const choreId = ulid();
 	const prizeId = ulid();
 
@@ -65,22 +65,37 @@ async function seedActivityData() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(parents).values({
+	await testDb.insert(members).values({
 		id: parentId,
-		familyId,
+		displayName: 'Test Parent',
+		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
 		passwordHash: await hashPassword('password123'),
-		displayName: 'Test Parent',
+		pin: null,
+		isActive: true,
 		createdAt: now()
 	});
-	await testDb.insert(kids).values({
-		id: kidId,
+	await testDb.insert(familyMembers).values({
+		memberId: parentId,
 		familyId,
+		role: 'admin',
+		joinedAt: now()
+	});
+	await testDb.insert(members).values({
+		id: memberId,
 		displayName: 'Emma',
 		avatarEmoji: '👧',
+		email: null,
+		passwordHash: null,
 		pin: 'hashed',
 		isActive: true,
 		createdAt: now()
+	});
+	await testDb.insert(familyMembers).values({
+		memberId,
+		familyId,
+		role: 'member',
+		joinedAt: now()
 	});
 	await testDb.insert(chores).values({
 		id: choreId,
@@ -90,7 +105,7 @@ async function seedActivityData() {
 		emoji: '🛏️',
 		frequency: 'daily',
 		coinValue: 10,
-		assignedKidId: null,
+		assignedMemberId: null,
 		isActive: true,
 		createdAt: now()
 	});
@@ -108,7 +123,7 @@ async function seedActivityData() {
 	await testDb.insert(choreCompletions).values({
 		id: ulid(),
 		choreId,
-		kidId,
+		memberId,
 		familyId,
 		coinsAwarded: 10,
 		periodKey: getPeriodKey('daily', new Date()),
@@ -119,13 +134,13 @@ async function seedActivityData() {
 	await testDb.insert(prizeRedemptions).values({
 		id: ulid(),
 		prizeId,
-		kidId,
+		memberId,
 		familyId,
 		coinCost: 50,
 		redeemedAt: now()
 	});
 
-	return { familyId, parentId, kidId, choreId, prizeId };
+	return { familyId, parentId, memberId, choreId, prizeId };
 }
 
 describe('admin/activity — load function', () => {
@@ -149,11 +164,11 @@ describe('admin/activity — load function', () => {
 		expect(result.page).toBe(1);
 	});
 
-	it('blocks kid access — requires parent role', async () => {
-		const { familyId, kidId } = await seedActivityData();
+	it('blocks member access — requires admin role', async () => {
+		const { familyId, memberId } = await seedActivityData();
 		const load = await getLoad();
 
-		await expect(load(mockLoadEvent(kidSession(familyId, kidId)))).rejects.toMatchObject({
+		await expect(load(mockLoadEvent(kidSession(familyId, memberId)))).rejects.toMatchObject({
 			status: 403
 		});
 	});
@@ -165,8 +180,8 @@ describe('admin/activity — load function', () => {
 		const result = (await load(mockLoadEvent(parentSession(familyId, parentId)))) as {
 			events: Array<{
 				type: string;
-				kidName: string;
-				kidAvatarEmoji: string;
+				memberName: string;
+				memberAvatarEmoji: string;
 				title: string;
 				coins: number;
 				occurredAt: string;
@@ -175,8 +190,8 @@ describe('admin/activity — load function', () => {
 
 		const redemption = result.events.find((e) => e.type === 'prize_redemption');
 		expect(redemption).toBeDefined();
-		expect(redemption!.kidName).toBe('Emma');
-		expect(redemption!.kidAvatarEmoji).toBe('👧');
+		expect(redemption!.memberName).toBe('Emma');
+		expect(redemption!.memberAvatarEmoji).toBe('👧');
 		expect(redemption!.coins).toBe(50);
 	});
 

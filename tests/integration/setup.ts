@@ -31,9 +31,9 @@ afterEach(async () => {
 	await testDb.delete(schema.prizeRedemptions);
 	await testDb.delete(schema.choreCompletions);
 	await testDb.delete(schema.sessions);
-	await testDb.delete(schema.prizes);
 	await testDb.delete(schema.chores);
-	await testDb.delete(schema.kids);
-	await testDb.delete(schema.parents);
+	await testDb.delete(schema.prizes);
+	await testDb.delete(schema.familyMembers);
+	await testDb.delete(schema.members);
 	await testDb.delete(schema.families);
 });

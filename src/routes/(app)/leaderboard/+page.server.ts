@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types.js';
 import { error } from '@sveltejs/kit';
 import { eq, and, gte, lte, sum, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { kids, choreCompletions } from '$lib/server/db/schema.js';
+import { members, familyMembers, choreCompletions } from '$lib/server/db/schema.js';
 import { getWeeklyPeriod } from '$lib/server/db/utils.js';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
@@ -14,47 +14,55 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	const { start, end, label } = getWeeklyPeriod(new Date(), resetDay);
 
-	// All active kids in this family
-	const familyKids = await db
-		.select()
-		.from(kids)
-		.where(and(eq(kids.familyId, session.familyId), eq(kids.isActive, true)));
+	const familyMembersList = await db
+		.select({
+			id: members.id,
+			displayName: members.displayName,
+			avatarEmoji: members.avatarEmoji
+		})
+		.from(familyMembers)
+		.innerJoin(members, eq(familyMembers.memberId, members.id))
+		.where(
+			and(
+				eq(familyMembers.familyId, session.familyId),
+				eq(members.isActive, true)
+			)
+		);
 
-	if (familyKids.length === 0) {
+	if (familyMembersList.length === 0) {
 		return {
 			period: { start: start.toISOString(), end: end.toISOString(), label },
 			rankings: []
 		};
 	}
 
-	const kidIds = familyKids.map((k) => k.id);
+	const memberIds = familyMembersList.map((m) => m.id);
 
 	// Aggregate coinsAwarded per kid within the current period
 	const rows = await db
 		.select({
-			kidId: choreCompletions.kidId,
+			memberId: choreCompletions.memberId,
 			total: sum(choreCompletions.coinsAwarded)
 		})
 		.from(choreCompletions)
 		.where(
 			and(
-				inArray(choreCompletions.kidId, kidIds),
+				inArray(choreCompletions.memberId, memberIds),
 				gte(choreCompletions.completedAt, start.toISOString()),
 				lte(choreCompletions.completedAt, end.toISOString())
 			)
 		)
-		.groupBy(choreCompletions.kidId);
+		.groupBy(choreCompletions.memberId);
 
 	const totalsMap = new Map<string, number>(
-		rows.map((r) => [r.kidId, Number(r.total ?? 0)])
+		rows.map((r) => [r.memberId, Number(r.total ?? 0)])
 	);
 
-	// Build rankings with 0 for kids with no completions
-	const unsorted = familyKids.map((kid) => ({
-		kidId: kid.id,
-		displayName: kid.displayName,
-		avatarEmoji: kid.avatarEmoji,
-		coinsEarned: totalsMap.get(kid.id) ?? 0
+	const unsorted = familyMembersList.map((member) => ({
+		memberId: member.id,
+		displayName: member.displayName,
+		avatarEmoji: member.avatarEmoji,
+		coinsEarned: totalsMap.get(member.id) ?? 0
 	}));
 
 	// Sort descending by coinsEarned, then by displayName for ties

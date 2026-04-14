@@ -7,35 +7,37 @@ export const families = sqliteTable('families', {
 	createdAt: text('created_at').notNull()
 });
 
-export const parents = sqliteTable(
-	'parents',
+export const members = sqliteTable(
+	'members',
 	{
 		id: text('id').primaryKey(),
-		familyId: text('family_id')
-			.notNull()
-			.references(() => families.id),
-		email: text('email').notNull().unique(),
-		passwordHash: text('password_hash').notNull(),
-		displayName: text('display_name').notNull(),
-		createdAt: text('created_at').notNull()
-	},
-	(table) => [index('idx_parent_email').on(table.email)]
-);
-
-export const kids = sqliteTable(
-	'kids',
-	{
-		id: text('id').primaryKey(),
-		familyId: text('family_id')
-			.notNull()
-			.references(() => families.id),
-		displayName: text('display_name').notNull(),
-		avatarEmoji: text('avatar_emoji').notNull(),
-		pin: text('pin').notNull(), // bcrypt-hashed 4–6 digit PIN
+		displayName: text('display_name').notNull().unique(),
+		avatarEmoji: text('avatar_emoji').notNull().default('👤'),
+		email: text('email').unique(),
+		passwordHash: text('password_hash'),
+		pin: text('pin'),
 		isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
 		createdAt: text('created_at').notNull()
 	},
-	(table) => [index('idx_kid_family').on(table.familyId, table.isActive)]
+	(table) => [index('idx_member_display_name').on(table.displayName), index('idx_member_email').on(table.email)]
+);
+
+export const familyMembers = sqliteTable(
+	'family_members',
+	{
+		memberId: text('member_id')
+			.notNull()
+			.references(() => members.id),
+		familyId: text('family_id')
+			.notNull()
+			.references(() => families.id),
+		role: text('role', { enum: ['admin', 'member'] }).notNull(),
+		joinedAt: text('joined_at').notNull()
+	},
+	(table) => [
+		uniqueIndex('uq_member_family').on(table.memberId, table.familyId),
+		index('idx_fm_family_role').on(table.familyId, table.role)
+	]
 );
 
 export const chores = sqliteTable(
@@ -50,7 +52,7 @@ export const chores = sqliteTable(
 		emoji: text('emoji').notNull(),
 		frequency: text('frequency', { enum: ['daily', 'weekly'] }).notNull(),
 		coinValue: integer('coin_value').notNull(),
-		assignedKidId: text('assigned_kid_id').references(() => kids.id),
+		assignedMemberId: text('assigned_member_id').references(() => members.id),
 		isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
 		createdAt: text('created_at').notNull()
 	},
@@ -64,9 +66,9 @@ export const choreCompletions = sqliteTable(
 		choreId: text('chore_id')
 			.notNull()
 			.references(() => chores.id),
-		kidId: text('kid_id')
+		memberId: text('member_id')
 			.notNull()
-			.references(() => kids.id),
+			.references(() => members.id),
 		familyId: text('family_id')
 			.notNull()
 			.references(() => families.id),
@@ -75,8 +77,8 @@ export const choreCompletions = sqliteTable(
 		completedAt: text('completed_at').notNull()
 	},
 	(table) => [
-		uniqueIndex('uq_completion_period').on(table.choreId, table.kidId, table.periodKey),
-		index('idx_completion_kid').on(table.kidId, table.completedAt),
+		uniqueIndex('uq_completion_period').on(table.choreId, table.memberId, table.periodKey),
+		index('idx_completion_member').on(table.memberId, table.completedAt),
 		index('idx_completion_family').on(table.familyId, table.completedAt)
 	]
 );
@@ -90,6 +92,7 @@ export const prizes = sqliteTable(
 			.references(() => families.id),
 		title: text('title').notNull(),
 		description: text('description').notNull().default(''),
+		emoji: text('emoji').notNull().default('noto:wrapped-gift'),
 		coinCost: integer('coin_cost').notNull(),
 		isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
 		createdAt: text('created_at').notNull()
@@ -104,9 +107,9 @@ export const prizeRedemptions = sqliteTable(
 		prizeId: text('prize_id')
 			.notNull()
 			.references(() => prizes.id),
-		kidId: text('kid_id')
+		memberId: text('member_id')
 			.notNull()
-			.references(() => kids.id),
+			.references(() => members.id),
 		familyId: text('family_id')
 			.notNull()
 			.references(() => families.id),
@@ -114,7 +117,7 @@ export const prizeRedemptions = sqliteTable(
 		redeemedAt: text('redeemed_at').notNull()
 	},
 	(table) => [
-		index('idx_redemption_kid').on(table.kidId, table.redeemedAt),
+		index('idx_redemption_member').on(table.memberId, table.redeemedAt),
 		index('idx_redemption_family').on(table.familyId, table.redeemedAt)
 	]
 );
@@ -126,8 +129,10 @@ export const sessions = sqliteTable(
 		familyId: text('family_id')
 			.notNull()
 			.references(() => families.id),
-		userId: text('user_id').notNull(), // Parent.id or Kid.id
-		userRole: text('user_role', { enum: ['parent', 'kid'] }).notNull(),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => members.id),
+		memberRole: text('member_role', { enum: ['admin', 'member'] }).notNull(),
 		expiresAt: text('expires_at').notNull(),
 		createdAt: text('created_at').notNull()
 	},

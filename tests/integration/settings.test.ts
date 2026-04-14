@@ -6,8 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	parents,
-	kids,
+	members,
+	familyMembers,
 	chores,
 	choreCompletions,
 	prizes,
@@ -29,15 +29,15 @@ function makeFormData(data: Record<string, string>): FormData {
 	return fd;
 }
 
-function parentSession(familyId: string, userId: string) {
+function parentSession(familyId: string, memberId: string) {
 	return {
-		id: `sess-${userId}`,
+		id: `sess-${memberId}`,
 		familyId,
-		userId,
-		userRole: 'parent' as const,
+		memberId,
+		memberRole: 'admin' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
-		user: { id: userId, displayName: 'Test Parent', familyId }
+		user: { id: memberId, displayName: 'Test Parent', familyId }
 	};
 }
 
@@ -64,7 +64,7 @@ function mockEvent(session: ReturnType<typeof parentSession>, formDataObj: Recor
 async function seedFullFamily() {
 	const familyId = ulid();
 	const parentId = ulid();
-	const kidId = ulid();
+	const memberId = ulid();
 	const choreId = ulid();
 	const prizeId = ulid();
 	const sessionId = `sess-${parentId}`;
@@ -75,22 +75,37 @@ async function seedFullFamily() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(parents).values({
+	await testDb.insert(members).values({
 		id: parentId,
-		familyId,
+		displayName: 'Full Parent',
+		avatarEmoji: '🧑',
 		email: `full-${familyId}@example.com`,
 		passwordHash: await hashPassword('password123'),
-		displayName: 'Full Parent',
+		pin: null,
+		isActive: true,
 		createdAt: now()
 	});
-	await testDb.insert(kids).values({
-		id: kidId,
+	await testDb.insert(familyMembers).values({
+		memberId: parentId,
 		familyId,
+		role: 'admin',
+		joinedAt: now()
+	});
+	await testDb.insert(members).values({
+		id: memberId,
 		displayName: 'Test Kid',
 		avatarEmoji: '🧒',
+		email: null,
+		passwordHash: null,
 		pin: 'hashed',
 		isActive: true,
 		createdAt: now()
+	});
+	await testDb.insert(familyMembers).values({
+		memberId,
+		familyId,
+		role: 'member',
+		joinedAt: now()
 	});
 	await testDb.insert(chores).values({
 		id: choreId,
@@ -100,7 +115,7 @@ async function seedFullFamily() {
 		emoji: '🧹',
 		frequency: 'daily',
 		coinValue: 10,
-		assignedKidId: null,
+		assignedMemberId: null,
 		isActive: true,
 		createdAt: now()
 	});
@@ -116,7 +131,7 @@ async function seedFullFamily() {
 	await testDb.insert(choreCompletions).values({
 		id: ulid(),
 		choreId,
-		kidId,
+		memberId,
 		familyId,
 		coinsAwarded: 10,
 		periodKey: new Date().toISOString().slice(0, 10),
@@ -125,7 +140,7 @@ async function seedFullFamily() {
 	await testDb.insert(prizeRedemptions).values({
 		id: ulid(),
 		prizeId,
-		kidId,
+		memberId,
 		familyId,
 		coinCost: 20,
 		redeemedAt: now()
@@ -133,13 +148,13 @@ async function seedFullFamily() {
 	await testDb.insert(sessions).values({
 		id: sessionId,
 		familyId,
-		userId: parentId,
-		userRole: 'parent',
+		memberId: parentId,
+		memberRole: 'admin',
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now()
 	});
 
-	return { familyId, parentId, kidId, choreId, prizeId, sessionId };
+	return { familyId, parentId, memberId, choreId, prizeId, sessionId };
 }
 
 describe('admin/settings — load', () => {
@@ -206,7 +221,7 @@ describe('admin/settings — updateFamily action', () => {
 
 describe('admin/settings — deleteFamily action', () => {
 	it('deletes all family data and sessions', async () => {
-		const { familyId, parentId, kidId, choreId, prizeId, sessionId } =
+		const { familyId, parentId, memberId, choreId, prizeId, sessionId } =
 			await seedFullFamily();
 		const actions = await getActions();
 
@@ -227,11 +242,11 @@ describe('admin/settings — deleteFamily action', () => {
 		const [family] = await testDb.select().from(families).where(eq(families.id, familyId));
 		expect(family).toBeUndefined();
 
-		const remainingParents = await testDb.select().from(parents).where(eq(parents.familyId, familyId));
-		expect(remainingParents).toHaveLength(0);
-
-		const remainingKids = await testDb.select().from(kids).where(eq(kids.familyId, familyId));
-		expect(remainingKids).toHaveLength(0);
+		const remainingFamilyMembers = await testDb
+			.select()
+			.from(familyMembers)
+			.where(eq(familyMembers.familyId, familyId));
+		expect(remainingFamilyMembers).toHaveLength(0);
 
 		const remainingChores = await testDb.select().from(chores).where(eq(chores.familyId, familyId));
 		expect(remainingChores).toHaveLength(0);

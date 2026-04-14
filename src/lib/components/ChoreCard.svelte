@@ -1,6 +1,8 @@
-﻿<script lang="ts">
+<script lang="ts">
     import { enhance } from "$app/forms";
+    import Icon from '@iconify/svelte';
     import confetti from "canvas-confetti";
+    import { resolveIconifyName } from '$lib/icons';
 
     interface Props {
         id: string;
@@ -11,7 +13,7 @@
         coinValue: number;
         assignedKidName: string | null;
         isCompleted: boolean;
-        activeKidId: string | null;
+        activeMemberId: string | null;
     }
 
     let {
@@ -23,7 +25,7 @@
         coinValue,
         assignedKidName,
         isCompleted,
-        activeKidId,
+        activeMemberId,
     }: Props = $props();
 
     let submitting = $state(false);
@@ -44,7 +46,9 @@
         : 'bg-white border-surface-200'}"
 >
     <div class="flex items-center gap-3">
-        <span class="text-4xl shrink-0" aria-hidden="true">{emoji}</span>
+        <span class="text-4xl shrink-0" aria-hidden="true">
+            <Icon icon={resolveIconifyName(emoji)} class="h-9 w-9" />
+        </span>
 
         <div class="flex-1 flex flex-col gap-1 min-w-0">
             <div class="flex items-center flex-wrap gap-2">
@@ -60,11 +64,11 @@
             {/if}
             <div>
                                     <span class="badge preset-tonal-warning text-xs py-1 px-1.5"
-                        >🪙 {coinValue}</span
+                        ><Icon icon="noto:coin" class="h-4 w-4" /> {coinValue}</span
                     >
                     {#if assignedKidName}
                         <span class="badge preset-tonal-surface text-xs py-1 px-1.5"
-                            >→ {assignedKidName}</span
+                            ><Icon icon="noto:bust-in-silhouette" class="h-4 w-4" /> {assignedKidName}</span
                         >
                     {/if}
             </div>
@@ -76,7 +80,7 @@
                     class="w-10 h-10 rounded-full bg-primary-500 text-white flex items-center justify-center text-lg"
                     aria-label="Completed"
                 >
-                    ✓
+                    <Icon icon="material-symbols:check" class="h-6 w-6 text-primary-contrast-500" />
                 </div>
             {:else}
                 <form
@@ -94,16 +98,16 @@
                     }}
                 >
                     <input type="hidden" name="choreId" value={id} />
-                    {#if activeKidId}
-                        <input type="hidden" name="kidId" value={activeKidId} />
+                    {#if activeMemberId}
+                        <input type="hidden" name="memberId" value={activeMemberId} />
                     {/if}
                     <button
                         type="submit"
-                        class="btn btn-sm preset-outlined-primary-500 w-10 h-10 rounded-full p-0"
+                        class="btn preset-outlined-primary-500 w-10 h-10 rounded-full p-0"
                         aria-label="Mark {title} as complete"
                         disabled={submitting}
                     >
-                        ○
+                        <Icon icon="material-symbols:check" class="h-6 w-6" />
                     </button>
                 </form>
             {/if}

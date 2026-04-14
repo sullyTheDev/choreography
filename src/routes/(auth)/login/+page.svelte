@@ -1,31 +1,32 @@
-﻿<script lang="ts">
+<script lang="ts">
 import { enhance } from '$app/forms';
+import Icon from '@iconify/svelte';
 import type { ActionData } from './$types.js';
 
 let { form }: { form: ActionData } = $props();
-let role = $state<'parent' | 'kid'>('parent');
+let role = $state<'admin' | 'member'>('admin');
 const pinPattern = '[0-9]{4,6}';
 let submitting = $state(false);
 </script>
 
 <div class="min-h-dvh flex items-center justify-center p-4 bg-surface-50-950">
 <div class="card preset-filled-surface-100-900 w-full max-w-sm p-6 space-y-4 shadow-xl">
-<h1 class="text-2xl font-extrabold">👋 Welcome back</h1>
+<h1 class="text-2xl font-extrabold flex items-center gap-2"><Icon icon="noto:waving-hand" class="h-7 w-7" /> Welcome back</h1>
 
 <div class="flex gap-2" role="group" aria-label="Login as">
 <button
 type="button"
-class="btn flex-1 {role === 'parent' ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
-onclick={() => (role = 'parent')}
+class="btn flex-1 {role === 'admin' ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
+onclick={() => (role = 'admin')}
 >
-👑 Parent
+Admin
 </button>
 <button
 type="button"
-class="btn flex-1 {role === 'kid' ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
-onclick={() => (role = 'kid')}
+class="btn flex-1 {role === 'member' ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
+onclick={() => (role = 'member')}
 >
-🧒 Kid
+Member
 </button>
 </div>
 
@@ -47,7 +48,7 @@ submitting = false;
 >
 <input type="hidden" name="role" value={role} />
 
-{#if role === 'parent'}
+{#if role === 'admin'}
 <label class="label">
 <span>Email</span>
 <input
@@ -74,19 +75,16 @@ autocomplete="current-password"
 </label>
 {:else}
 <label class="label">
-<span>Family code</span>
+<span>Your name</span>
 <input
 class="input"
-id="familyCode"
-name="familyCode"
+id="displayName"
+name="displayName"
 type="text"
-placeholder="XXXXXXXX"
+placeholder="Emma"
 required
-autocomplete="off"
-maxlength="8"
-style="text-transform: uppercase; letter-spacing: 0.15em"
+autocomplete="name"
 />
-<span class="text-xs text-surface-500">Found in parent Settings page</span>
 </label>
 
 <label class="label">
@@ -96,7 +94,7 @@ class="input"
 id="pin"
 name="pin"
 type="password"
-placeholder="4–6 digit PIN"
+placeholder="4-6 digit PIN"
 required
 autocomplete="current-password"
 inputmode="numeric"
@@ -107,11 +105,11 @@ maxlength="6"
 {/if}
 
 <button type="submit" class="btn preset-filled w-full" disabled={submitting}>
-{submitting ? 'Signing in…' : 'Sign in →'}
+{submitting ? 'Signing in...' : 'Sign in'}
 </button>
 </form>
 
-{#if role === 'parent'}
+{#if role === 'admin'}
 <p class="text-center text-sm text-surface-600-400">
 New here? <a href="/signup" class="anchor">Create a family account</a>
 </p>

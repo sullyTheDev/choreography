@@ -1,19 +1,20 @@
 <script lang="ts">
+    import Icon from '@iconify/svelte';
 	import { page } from '$app/state';
 
 	interface Props {
-		role: 'parent' | 'kid';
-		activeKidId: string | null;
+		role: 'admin' | 'member';
+		activeMemberId: string | null;
 	}
 
-	let { role, activeKidId }: Props = $props();
+	let { role, activeMemberId }: Props = $props();
 
-	const kidQs = $derived(activeKidId ? `?kid=${activeKidId}` : '');
+	const memberQs = $derived(activeMemberId ? `?member=${activeMemberId}` : '');
 
 	const tabs = $derived([
-		{ href: `/chores${kidQs}`, label: 'Chores', emoji: '✅' },
-		{ href: `/prizes${kidQs}`, label: 'Prize Shop', emoji: '🎁' },
-		{ href: `/leaderboard`, label: 'Leaderboard', emoji: '🏆' }
+		{ href: `/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
+		{ href: `/prizes${memberQs}`, label: 'Prize Shop', icon: 'noto:wrapped-gift' },
+		{ href: `/leaderboard`, label: 'Leaderboard', icon: 'noto:trophy' }
 	]);
 
 	const currentPath = $derived(page.url.pathname);
@@ -35,7 +36,7 @@
 						? 'preset-filled-primary-500'
 						: 'text-surface-600 hover:bg-surface-200'}"
 			>
-				<span aria-hidden="true">{tab.emoji}</span>
+				<Icon icon={tab.icon} class="h-5 w-5" aria-hidden="true" />
 				{tab.label}
 			</a>
 		{/each}
