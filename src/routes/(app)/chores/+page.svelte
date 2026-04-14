@@ -7,7 +7,7 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 
 <div class="space-y-4">
 <div>
-<h1 class="text-2xl font-bold">{data.greeting}</h1>
+<h1 class="text-3xl font-extrabold">{data.greeting}</h1>
 {#if data.remainingCount > 0}
 <p class="text-surface-600-400">
 {data.remainingCount} chore{data.remainingCount === 1 ? '' : 's'} left today

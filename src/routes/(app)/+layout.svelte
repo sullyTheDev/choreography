@@ -22,7 +22,7 @@
 
 	<NavTabs role={data.user.role} activeKidId={data.activeKidId} />
 
-	<main class="flex-1 max-w-screen-lg mx-auto w-full px-4 py-6">
+	<main class="flex-1 max-w-screen-lg mx-auto w-full px-4 py-8">
 		{@render children()}
 	</main>
 </div>

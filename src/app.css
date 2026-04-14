@@ -10,6 +10,7 @@
 @import '@skeletonlabs/skeleton-svelte';
 
 @import '@skeletonlabs/skeleton/themes/vintage';
+@import '@skeletonlabs/skeleton/themes/mona';
 
 /* Force light-mode base — overrides any dark @media rule Skeleton sets on body */
 html, body {

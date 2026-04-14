@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Navigation } from '@skeletonlabs/skeleton-svelte';
 
 	interface Props {
 		role: 'parent' | 'kid';
@@ -17,38 +16,30 @@
 		{ href: `/leaderboard`, label: 'Leaderboard', emoji: '🏆' }
 	]);
 
+	const currentPath = $derived(page.url.pathname);
+
 	function isActive(href: string): boolean {
 		const path = href.split('?')[0];
-		return page.url.pathname === path || page.url.pathname.startsWith(path + '/');
+		return currentPath === path || currentPath.startsWith(path + '/');
 	}
 </script>
 
-<Navigation
-	layout="bar"
-	class="border-b border-surface-200-800 bg-surface-50-950"
-	aria-label="Main navigation"
->
-	<Navigation.Menu class="flex max-w-screen-lg mx-auto px-4">
+<nav class="bg-surface-50-950 mt-8" aria-label="Main navigation">
+	<div class=" max-w-fit rounded-full flex items-center justify-center gap-1 mx-auto p-1.5 bg-surface-100-900">
 		{#each tabs as tab}
-			<Navigation.TriggerAnchor
+			<a
 				href={tab.href}
 				aria-current={isActive(tab.href) ? 'page' : undefined}
-				class={isActive(tab.href) ? 'preset-filled-primary-500' : 'hover:preset-tonal'}
+				class="flex items-center gap-2 px-5 py-2 rounded-full font-semibold text-sm no-underline transition-colors
+					{isActive(tab.href)
+						? 'preset-filled-primary-500'
+						: 'text-surface-600 hover:bg-surface-200'}"
 			>
 				<span aria-hidden="true">{tab.emoji}</span>
-				<Navigation.TriggerText>{tab.label}</Navigation.TriggerText>
-			</Navigation.TriggerAnchor>
+				{tab.label}
+			</a>
 		{/each}
 
-		{#if role === 'parent'}
-			<Navigation.TriggerAnchor
-				href="/admin/chores"
-				aria-current={page.url.pathname.startsWith('/admin') ? 'page' : undefined}
-				class="ml-auto {page.url.pathname.startsWith('/admin') ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
-			>
-				<span aria-hidden="true">⚙️</span>
-				<Navigation.TriggerText>Manage</Navigation.TriggerText>
-			</Navigation.TriggerAnchor>
-		{/if}
-	</Navigation.Menu>
-</Navigation>
+
+	</div>
+</nav>

@@ -20,7 +20,7 @@
 		{#each kids as kid (kid.id)}
 			<a
 				href={kidUrl(kid.id)}
-				class="btn btn-sm {kid.id === activeKidId ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
+				class="btn btn-lg rounded-full {kid.id === activeKidId ? 'preset-filled-primary-500' : 'preset-outlined-primary-500'}"
 				aria-current={kid.id === activeKidId ? 'page' : undefined}
 				title={kid.displayName}
 			>
