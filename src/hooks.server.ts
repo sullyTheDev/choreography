@@ -1,12 +1,8 @@
 import type { Handle } from '@sveltejs/kit';
-import { ensureMigrated } from '$lib/server/db/index.js';
 import { validateSession, SESSION_COOKIE_NAME, getParentById, getKidById } from '$lib/server/auth.js';
 import { logger } from '$lib/server/logger.js';
 
 export const handle: Handle = async ({ event, resolve }) => {
-	// Run DB migrations on first request (idempotent after that)
-	await ensureMigrated();
-
 	const start = Date.now();
 	const sessionToken = event.cookies.get(SESSION_COOKIE_NAME);
 

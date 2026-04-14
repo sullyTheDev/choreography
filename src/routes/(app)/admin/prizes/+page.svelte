@@ -1,140 +1,139 @@
-<script lang="ts">
-	import type { PageData, ActionData } from './$types.js';
-	import { enhance } from '$app/forms';
+﻿<script lang="ts">
+import type { PageData, ActionData } from './$types.js';
+import { enhance } from '$app/forms';
 
-	let { data, form }: { data: PageData; form: ActionData } = $props();
+let { data, form }: { data: PageData; form: ActionData } = $props();
 
-	let showCreate = $state(false);
-	let editingPrizeId = $state<string | null>(null);
+let showCreate = $state(false);
+let editingPrizeId = $state<string | null>(null);
+let submitting = $state(false);
 
-	function startEdit(prizeId: string) {
-		editingPrizeId = prizeId;
-		showCreate = false;
-	}
-	function cancelEdit() {
-		editingPrizeId = null;
-	}
+function startEdit(prizeId: string) {
+editingPrizeId = prizeId;
+showCreate = false;
+}
+function cancelEdit() {
+editingPrizeId = null;
+}
 </script>
 
-<div class="page-container">
-	<div class="page-header">
-		<h1>Manage Prizes</h1>
-		<button class="btn btn-primary" onclick={() => { showCreate = !showCreate; editingPrizeId = null; }}>
-			{showCreate ? 'Cancel' : '+ Add Prize'}
-		</button>
-	</div>
-
-	{#if form?.error}
-		<div class="alert alert-error">{form.error}</div>
-	{/if}
-
-	{#if showCreate}
-		<div class="card form-card">
-			<h2>Add New Prize</h2>
-			<form method="POST" action="?/create" use:enhance={({ formElement, formData, cancel }) => {
-				return async ({ result, update }) => {
-					await update();
-					if (result.type !== 'failure') showCreate = false;
-				};
-			}}>
-				<div class="form-group">
-					<label for="title">Title</label>
-					<input id="title" name="title" type="text" placeholder="e.g. Extra screen time" required class="form-input" />
-				</div>
-				<div class="form-group">
-					<label for="description">Description</label>
-					<input id="description" name="description" type="text" placeholder="Optional details" class="form-input" />
-				</div>
-				<div class="form-group">
-					<label for="coinCost">Coin Cost</label>
-					<input id="coinCost" name="coinCost" type="number" min="1" placeholder="e.g. 50" required class="form-input" />
-				</div>
-				<div class="form-actions">
-					<button type="submit" class="btn btn-primary">Create Prize</button>
-					<button type="button" class="btn btn-ghost" onclick={() => (showCreate = false)}>Cancel</button>
-				</div>
-			</form>
-		</div>
-	{/if}
-
-	<div class="prizes-list">
-		{#each data.prizes as prize (prize.id)}
-			<div class="card prize-card">
-				<div class="prize-header">
-					<div class="prize-info">
-						<strong>{prize.title}</strong>
-						<span class="coin-cost">🪙 {prize.coinCost} coins</span>
-						{#if prize.description}
-							<p class="prize-desc">{prize.description}</p>
-						{/if}
-					</div>
-					<div class="prize-actions">
-						<button class="btn btn-sm btn-ghost" onclick={() => startEdit(prize.id)}>Edit</button>
-						<form method="POST" action="?/delete" use:enhance>
-							<input type="hidden" name="prizeId" value={prize.id} />
-							<button type="submit" class="btn btn-sm btn-danger" onclick={(e) => { if (!confirm(`Delete "${prize.title}"?`)) e.preventDefault(); }}>
-								Delete
-							</button>
-						</form>
-					</div>
-				</div>
-
-				{#if editingPrizeId === prize.id}
-					<div class="edit-form">
-						<form method="POST" action="?/update" use:enhance={({ formElement, formData, cancel }) => {
-							return async ({ result, update }) => {
-								await update();
-								if (result.type !== 'failure') cancelEdit();
-							};
-						}}>
-							<input type="hidden" name="prizeId" value={prize.id} />
-							<div class="form-group">
-								<label for="edit-title-{prize.id}">Title</label>
-								<input id="edit-title-{prize.id}" name="title" type="text" value={prize.title} required class="form-input" />
-							</div>
-							<div class="form-group">
-								<label for="edit-desc-{prize.id}">Description</label>
-								<input id="edit-desc-{prize.id}" name="description" type="text" value={prize.description} class="form-input" />
-							</div>
-							<div class="form-group">
-								<label for="edit-cost-{prize.id}">Coin Cost</label>
-								<input id="edit-cost-{prize.id}" name="coinCost" type="number" min="1" value={prize.coinCost} required class="form-input" />
-							</div>
-							<div class="form-actions">
-								<button type="submit" class="btn btn-primary">Save Changes</button>
-								<button type="button" class="btn btn-ghost" onclick={cancelEdit}>Cancel</button>
-							</div>
-						</form>
-					</div>
-				{/if}
-			</div>
-		{/each}
-
-		{#if data.prizes.length === 0}
-			<div class="empty-state">
-				<p>No prizes yet. Add prizes for kids to redeem with their coins!</p>
-			</div>
-		{/if}
-	</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<h1 class="text-2xl font-bold">Manage Prizes</h1>
+<button
+class="btn preset-filled"
+onclick={() => { showCreate = !showCreate; editingPrizeId = null; }}
+>
+{showCreate ? 'Cancel' : '+ Add Prize'}
+</button>
 </div>
 
-<style>
-	.page-container { max-width: 720px; margin: 0 auto; padding: var(--space-4); }
-	.page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4); }
-	.form-card { margin-bottom: var(--space-4); padding: var(--space-4); }
-	.prizes-list { display: flex; flex-direction: column; gap: var(--space-3); }
-	.prize-card { padding: var(--space-3) var(--space-4); }
-	.prize-header { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--space-3); }
-	.prize-info { display: flex; flex-direction: column; gap: var(--space-1); flex: 1; }
-	.coin-cost { font-size: var(--text-sm); color: var(--color-text-secondary); }
-	.prize-desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; }
-	.prize-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
-	.edit-form { margin-top: var(--space-3); padding-top: var(--space-3); border-top: 1px solid var(--color-border); }
-	.form-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3); }
-	.btn-sm { padding: 4px 10px; font-size: var(--text-sm); }
-	.btn-danger { background: #dc2626; color: white; }
-	.btn-danger:hover { background: #b91c1c; }
-	.empty-state { text-align: center; padding: var(--space-6); color: var(--color-text-secondary); }
-	.alert { padding: var(--space-3); border-radius: var(--radius); margin-bottom: var(--space-3); }
-	.alert-error { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
-</style>
+{#if form?.error}
+<div class="card preset-tonal-error p-3 text-sm">{form.error}</div>
+{/if}
+
+{#if showCreate}
+<div class="card preset-outlined-surface-200-800 p-4 space-y-3">
+<h2 class="text-lg font-semibold">Add New Prize</h2>
+<form
+method="POST"
+action="?/create"
+class="space-y-3"
+use:enhance={({ formElement, formData, cancel }) => {
+submitting = true;
+return async ({ result, update }) => {
+await update();
+submitting = false;
+if (result.type !== 'failure') showCreate = false;
+};
+}}
+>
+<label class="label">
+<span>Title</span>
+<input id="title" name="title" type="text" class="input" placeholder="e.g. Extra screen time" required />
+</label>
+<label class="label">
+<span>Description</span>
+<input id="description" name="description" type="text" class="input" placeholder="Optional details" />
+</label>
+<label class="label">
+<span>Coin Cost</span>
+<input id="coinCost" name="coinCost" type="number" class="input" min="1" placeholder="e.g. 50" required />
+</label>
+<div class="flex gap-2">
+<button type="submit" class="btn preset-filled" disabled={submitting}>Create Prize</button>
+<button type="button" class="btn hover:preset-tonal" onclick={() => (showCreate = false)}>Cancel</button>
+</div>
+</form>
+</div>
+{/if}
+
+<div class="flex flex-col gap-3">
+{#each data.prizes as prize (prize.id)}
+<div class="card preset-outlined-surface-200-800 p-4 space-y-3">
+<div class="flex justify-between items-start gap-3">
+<div class="flex flex-col gap-1 flex-1">
+<strong class="font-semibold">{prize.title}</strong>
+<span class="text-sm text-surface-600-400">🪙 {prize.coinCost} coins</span>
+{#if prize.description}
+<p class="text-sm text-surface-600-400 m-0">{prize.description}</p>
+{/if}
+</div>
+<div class="flex gap-2 shrink-0">
+<button class="btn btn-sm hover:preset-tonal" onclick={() => startEdit(prize.id)}>Edit</button>
+<form method="POST" action="?/delete" use:enhance>
+<input type="hidden" name="prizeId" value={prize.id} />
+<button
+type="submit"
+class="btn btn-sm preset-filled-error-500"
+onclick={(e) => { if (!confirm(`Delete "${prize.title}"?`)) e.preventDefault(); }}
+>
+Delete
+</button>
+</form>
+</div>
+</div>
+
+{#if editingPrizeId === prize.id}
+<div class="border-t border-surface-200-800 pt-3 space-y-3">
+<form
+method="POST"
+action="?/update"
+class="space-y-3"
+use:enhance={({ formElement, formData, cancel }) => {
+submitting = true;
+return async ({ result, update }) => {
+await update();
+submitting = false;
+if (result.type !== 'failure') cancelEdit();
+};
+}}
+>
+<input type="hidden" name="prizeId" value={prize.id} />
+<label class="label">
+<span>Title</span>
+<input id="edit-title-{prize.id}" name="title" type="text" class="input" value={prize.title} required />
+</label>
+<label class="label">
+<span>Description</span>
+<input id="edit-desc-{prize.id}" name="description" type="text" class="input" value={prize.description} />
+</label>
+<label class="label">
+<span>Coin Cost</span>
+<input id="edit-cost-{prize.id}" name="coinCost" type="number" class="input" min="1" value={prize.coinCost} required />
+</label>
+<div class="flex gap-2">
+<button type="submit" class="btn preset-filled" disabled={submitting}>Save Changes</button>
+<button type="button" class="btn hover:preset-tonal" onclick={cancelEdit}>Cancel</button>
+</div>
+</form>
+</div>
+{/if}
+</div>
+{/each}
+
+{#if data.prizes.length === 0}
+<p class="text-center text-surface-500 py-12">No prizes yet. Add prizes for kids to redeem with their coins!</p>
+{/if}
+</div>
+</div>

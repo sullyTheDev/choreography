@@ -10,7 +10,7 @@
 	const coinBalance = $derived(activeKid?.coinBalance ?? 0);
 </script>
 
-<div class="app-shell">
+<div class="min-h-dvh flex flex-col">
 	<Header
 		appName="Chore·ography"
 		familyName={data.family.name}
@@ -22,19 +22,7 @@
 
 	<NavTabs role={data.user.role} activeKidId={data.activeKidId} />
 
-	<main class="page-content">
+	<main class="flex-1 max-w-screen-lg mx-auto w-full px-4 py-8">
 		{@render children()}
 	</main>
 </div>
-
-<style>
-	.app-shell {
-		min-height: 100dvh;
-		display: flex;
-		flex-direction: column;
-	}
-
-	main {
-		flex: 1;
-	}
-</style>

@@ -1,12 +1,15 @@
 
 <!--
 Sync Impact Report
-Version change: (none) → 1.0.0
-Modified principles: all placeholders → Choreography-specific
-Added sections: All (fully instantiated)
-Removed sections: None
-Templates requiring updates: ✅ plan-template.md, ✅ spec-template.md, ✅ tasks-template.md
-Follow-up TODOs: None (all placeholders resolved)
+Version change: 1.1.0 → 1.2.0
+Modified principles: "UI Framework: Skeleton + Tailwind CSS" (standalone section) → "VI. Skeleton UI System First" (numbered principle)
+Added sections: Principle VI (promoted + new "Skeleton First" mandatory rule)
+Removed sections: Standalone "UI Framework" section (merged into Principle VI)
+Templates requiring updates:
+  ✅ plan-template.md — Constitution Check gates already generic; no specific update required
+  ✅ spec-template.md — No UI-specific gates referenced; no update required
+  ✅ tasks-template.md — No UI-specific task types referenced; no update required
+Follow-up TODOs: None. All existing UI already migrated to Skeleton v4 as of 2026-04-09.
 -->
 
 # Choreography Constitution
@@ -29,6 +32,25 @@ Work MUST start with specification before implementation. Tests MUST be written 
 
 ### V. Observable Simplicity
 Prefer the simplest SvelteKit architecture that satisfies the current need. Avoid unnecessary services, abstractions, or infrastructure until justified by real product pressure. Features with operational risk or user-impacting workflows MUST include structured logging and/or monitoring hooks as appropriate. Documentation and quickstart guidance MUST be updated when behavior changes. Rationale: Keeps the project maintainable and debuggable for all contributors.
+
+### VI. Skeleton UI System First
+All user-facing UI MUST be built with **Skeleton v4** (`@skeletonlabs/skeleton` + `@skeletonlabs/skeleton-svelte`) on top of **Tailwind CSS v4**. When implementing any new component, interactive element, or UX pattern, contributors MUST start from Skeleton's component library and utility classes. Custom HTML + CSS-only solutions are only acceptable when Skeleton provides no equivalent. This is a permanent, project-wide constraint that applies to all future features.
+
+#### Mandatory Rules
+
+- Import Skeleton Svelte components from `@skeletonlabs/skeleton-svelte`.
+- Use the **composed sub-component pattern** for all Skeleton components (e.g., `<Avatar><Avatar.Image /><Avatar.Fallback /></Avatar>`).
+- State flows **in via props**, changes flow **out via event handlers** — do not use two-way `bind:` with Skeleton components unless the component explicitly supports it.
+- Apply all styling via Tailwind utility classes and Skeleton preset/utility classes passed through the `class` attribute.
+- Themes MUST be defined using the Skeleton theme system (CSS custom properties, `data-theme` on `<html>`, imported in `app.css`).
+- Page layouts MUST use custom semantic HTML + Tailwind — do not use any AppShell wrapper.
+- Use `<Portal>` from `@skeletonlabs/skeleton-svelte` for overlays, popovers, and dialogs that must escape the DOM hierarchy.
+- Use **Lucide** (`@lucide/svelte`) as the icon library.
+- Form elements that use Skeleton's form utility classes MUST include the `@tailwindcss/forms` plugin (`@plugin '@tailwindcss/forms'` in `app.css`).
+
+#### Incompatible Libraries
+
+Do NOT use Flowbite, Flowbite-Svelte, or DaisyUI alongside Skeleton. These libraries make overlapping changes to Tailwind that conflict with Skeleton's color system and class names.
 
 ## Additional Technical and Product Constraints
 
@@ -58,4 +80,4 @@ This is the initial constitution for the Choreography project. Amendments are ap
 
 This constitution supersedes all other practices. All PRs and reviews must verify compliance with these principles and gates.
 
-**Version**: 1.0.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-08
+**Version**: 1.2.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-13

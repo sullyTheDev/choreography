@@ -23,8 +23,7 @@ await migrate(testDb, { migrationsFolder: join(__dirname, '../../drizzle') });
 
 // Mock the db module so all server code uses testDb
 vi.mock('$lib/server/db/index.js', () => ({
-	db: testDb,
-	ensureMigrated: () => Promise.resolve()
+	db: testDb
 }));
 
 // Reset all tables between test files
