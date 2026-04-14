@@ -1,5 +1,5 @@
 import type { Handle } from '@sveltejs/kit';
-import { validateSession, SESSION_COOKIE_NAME, getParentById, getKidById } from '$lib/server/auth.js';
+import { validateSession, SESSION_COOKIE_NAME, getMemberById } from '$lib/server/auth.js';
 import { logger } from '$lib/server/logger.js';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -12,10 +12,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 		try {
 			const session = await validateSession(sessionToken);
 			if (session) {
-				const user =
-					session.userRole === 'parent'
-						? await getParentById(session.userId)
-						: await getKidById(session.userId);
+				const user = await getMemberById(session.memberId);
 
 				if (user) {
 					event.locals.session = {
@@ -23,8 +20,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 						user: {
 							id: user.id,
 							displayName: user.displayName,
-							avatarEmoji: 'avatarEmoji' in user ? user.avatarEmoji : undefined,
-							familyId: user.familyId
+							avatarEmoji: user.avatarEmoji,
+							familyId: session.familyId
 						}
 					};
 				}

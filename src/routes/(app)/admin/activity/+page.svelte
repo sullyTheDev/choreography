@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+import Icon from '@iconify/svelte';
 import type { PageData } from './$types.js';
 
 let { data }: { data: PageData } = $props();
@@ -20,15 +21,15 @@ minute: '2-digit'
 </div>
 
 {#if data.events.length === 0}
-<p class="text-center text-surface-500 py-12">No activity yet. Once kids start completing chores and redeeming prizes, you'll see it here.</p>
+<p class="text-center text-surface-500 py-12">No activity yet. Once members start completing chores and redeeming prizes, you'll see it here.</p>
 {:else}
 <div class="flex flex-col gap-2" aria-label="Activity log">
 {#each data.events as event}
-<div class="card preset-outlined-surface-200-800 flex items-center gap-3 p-3 border-l-4 {event.type === 'chore_completion' ? 'border-l-success-500' : 'border-l-primary-500'}">
-<div class="text-2xl shrink-0" aria-hidden="true">{event.kidAvatarEmoji}</div>
+<div class="card bg-white border border-surface-200 shadow-md flex items-center gap-4 p-4 border-l-4 {event.type === 'chore_completion' ? 'border-l-success-500' : 'border-l-primary-500'}">
+<div class="text-2xl shrink-0" aria-hidden="true">{event.memberAvatarEmoji}</div>
 <div class="flex-1 flex flex-col gap-0.5">
 <div class="text-sm">
-<strong>{event.kidName}</strong>
+<strong>{event.memberName}</strong>
 {#if event.type === 'chore_completion'}
 completed <em>"{event.title}"</em>
 {:else}
@@ -37,13 +38,17 @@ redeemed <em>"{event.title}"</em>
 </div>
 <div class="flex gap-2 items-center">
 <span class="text-sm font-semibold {event.type === 'chore_completion' ? 'text-success-600-400' : 'text-primary-500'}">
-{event.type === 'chore_completion' ? '+' : '−'}🪙 {event.coins}
+{event.type === 'chore_completion' ? '+' : '−'}<Icon icon="noto:coin" class="h-4 w-4 inline" /> {event.coins}
 </span>
 <span class="text-xs text-surface-500">{formatDate(event.occurredAt)}</span>
 </div>
 </div>
 <div class="text-xl shrink-0" aria-hidden="true">
-{event.type === 'chore_completion' ? '✓' : '🎁'}
+{#if event.type === 'chore_completion'}
+<Icon icon="noto:check-mark-button" class="h-5 w-5" />
+{:else}
+<Icon icon="noto:wrapped-gift" class="h-5 w-5" />
+{/if}
 </div>
 </div>
 {/each}

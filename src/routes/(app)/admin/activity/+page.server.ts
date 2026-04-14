@@ -7,14 +7,15 @@ import {
 	prizeRedemptions,
 	chores,
 	prizes,
-	kids
+	members,
+	familyMembers
 } from '$lib/server/db/schema.js';
 
 const PAGE_SIZE = 25;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { session } = locals;
-	if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+	if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 	const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 	const offset = (page - 1) * PAGE_SIZE;
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		db
 			.select({
 				id: choreCompletions.id,
-				kidId: choreCompletions.kidId,
+				memberId: choreCompletions.memberId,
 				choreId: choreCompletions.choreId,
 				coinsAwarded: choreCompletions.coinsAwarded,
 				completedAt: choreCompletions.completedAt
@@ -37,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		db
 			.select({
 				id: prizeRedemptions.id,
-				kidId: prizeRedemptions.kidId,
+				memberId: prizeRedemptions.memberId,
 				prizeId: prizeRedemptions.prizeId,
 				coinCost: prizeRedemptions.coinCost,
 				redeemedAt: prizeRedemptions.redeemedAt
@@ -47,23 +48,26 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.orderBy(desc(prizeRedemptions.redeemedAt))
 	]);
 
-	// Fetch kids and chore/prize titles maps
-	const [allKids, allChores, allPrizes] = await Promise.all([
-		db.select({ id: kids.id, displayName: kids.displayName, avatarEmoji: kids.avatarEmoji }).from(kids).where(eq(kids.familyId, familyId)),
+	const [allMembers, allChores, allPrizes] = await Promise.all([
+		db
+			.select({ id: members.id, displayName: members.displayName, avatarEmoji: members.avatarEmoji })
+			.from(familyMembers)
+			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.where(eq(familyMembers.familyId, familyId)),
 		db.select({ id: chores.id, title: chores.title }).from(chores).where(eq(chores.familyId, familyId)),
 		db.select({ id: prizes.id, title: prizes.title }).from(prizes).where(eq(prizes.familyId, familyId))
 	]);
 
-	const kidMap = new Map(allKids.map((k) => [k.id, k]));
+	const memberMap = new Map(allMembers.map((m) => [m.id, m]));
 	const choreMap = new Map(allChores.map((c) => [c.id, c.title]));
 	const prizeMap = new Map(allPrizes.map((p) => [p.id, p.title]));
 
 	// Merge and sort events
 	type ActivityEvent = {
 		type: 'chore_completion' | 'prize_redemption';
-		kidId: string;
-		kidName: string;
-		kidAvatarEmoji: string;
+		memberId: string;
+		memberName: string;
+		memberAvatarEmoji: string;
 		title: string;
 		coins: number;
 		occurredAt: string;
@@ -72,13 +76,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const events: ActivityEvent[] = [];
 
 	for (const row of completionRows) {
-		const kid = kidMap.get(row.kidId);
-		if (!kid) continue;
+		const member = memberMap.get(row.memberId);
+		if (!member) continue;
 		events.push({
 			type: 'chore_completion',
-			kidId: row.kidId,
-			kidName: kid.displayName,
-			kidAvatarEmoji: kid.avatarEmoji,
+			memberId: row.memberId,
+			memberName: member.displayName,
+			memberAvatarEmoji: member.avatarEmoji,
 			title: choreMap.get(row.choreId) ?? 'Unknown chore',
 			coins: row.coinsAwarded,
 			occurredAt: row.completedAt
@@ -86,13 +90,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	}
 
 	for (const row of redemptionRows) {
-		const kid = kidMap.get(row.kidId);
-		if (!kid) continue;
+		const member = memberMap.get(row.memberId);
+		if (!member) continue;
 		events.push({
 			type: 'prize_redemption',
-			kidId: row.kidId,
-			kidName: kid.displayName,
-			kidAvatarEmoji: kid.avatarEmoji,
+			memberId: row.memberId,
+			memberName: member.displayName,
+			memberAvatarEmoji: member.avatarEmoji,
 			title: prizeMap.get(row.prizeId) ?? 'Unknown prize',
 			coins: row.coinCost,
 			occurredAt: row.redeemedAt

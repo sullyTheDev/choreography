@@ -1,18 +1,18 @@
-﻿<script lang="ts">
+<script lang="ts">
 import { enhance } from '$app/forms';
 import { AppBar } from '@skeletonlabs/skeleton-svelte';
-import KidSwitcher from './KidSwitcher.svelte';
+import MemberSwitcher from './MemberSwitcher.svelte';
 
 interface Props {
 appName: string;
 familyName: string;
-user: { id: string; displayName: string; role: 'parent' | 'kid'; avatarEmoji?: string };
-kids: Array<{ id: string; displayName: string; avatarEmoji: string; coinBalance: number }>;
-activeKidId: string | null;
+user: { id: string; displayName: string; role: 'admin' | 'member'; avatarEmoji: string };
+members: Array<{ id: string; displayName: string; avatarEmoji: string; coinBalance: number }>;
+activeMemberId: string | null;
 coinBalance: number;
 }
 
-let { appName, familyName, user, kids, activeKidId, coinBalance }: Props = $props();
+let { appName, familyName, user, members, activeMemberId, coinBalance }: Props = $props();
 </script>
 
 <AppBar class="sticky top-0 z-10 bg-surface-50-950 border-b border-surface-200-800 shadow-sm">
@@ -20,7 +20,7 @@ let { appName, familyName, user, kids, activeKidId, coinBalance }: Props = $prop
 		<AppBar.Lead>
 			<div class="flex flex-col leading-tight min-w-0">
 				<a
-					href={user.role === 'parent' ? '/admin/chores' : '/chores'}
+					href={user.role === 'admin' ? '/admin/chores' : '/chores'}
 					class="text-2xl font-extrabold text-primary-500 no-underline whitespace-nowrap"
 				>
 					{appName}
@@ -29,20 +29,20 @@ let { appName, familyName, user, kids, activeKidId, coinBalance }: Props = $prop
 			</div>
 		</AppBar.Lead>
 		<AppBar.Headline class="flex justify-center">
-			{#if kids.length > 0}
-				<KidSwitcher {kids} {activeKidId} />
+			{#if members.length > 0}
+				<MemberSwitcher {members} {activeMemberId} />
 			{/if}
 		</AppBar.Headline>
 		<AppBar.Trail class="justify-end">
 			<div class="flex items-center gap-3 flex-nowrap">
 				<span class="flex items-center gap-1 font-bold text-sm whitespace-nowrap" aria-label="{coinBalance} coins">
-					🪙 <span>{coinBalance}</span>
+					<span>{coinBalance}</span>
 				</span>
-				{#if user.role === 'parent'}
+				{#if user.role === 'admin'}
 					<a
 						href="/admin/chores"
 						class="btn btn-sm hover:preset-tonal no-underline"
-					>⚙️ Manage</a>
+					>Manage</a>
 				{/if}
 				<form method="POST" action="/logout" use:enhance style="display:contents">
 					<button type="submit" class="btn btn-sm hover:preset-tonal">Sign out</button>

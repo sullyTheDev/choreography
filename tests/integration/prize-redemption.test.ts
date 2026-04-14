@@ -6,8 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	parents,
-	kids,
+	members,
+	familyMembers,
 	chores,
 	prizes,
 	choreCompletions,
@@ -26,15 +26,15 @@ function makeFormData(data: Record<string, string>): FormData {
 	return fd;
 }
 
-function kidSession(familyId: string, kidId: string, kidDisplayName = 'Emma') {
+function kidSession(familyId: string, memberId: string, kidDisplayName = 'Emma') {
 	return {
 		id: 'sess-kid-1',
 		familyId,
-		userId: kidId,
-		userRole: 'kid' as const,
+		memberId: memberId,
+		memberRole: 'member' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
-		user: { id: kidId, displayName: kidDisplayName, avatarEmoji: '👧', familyId }
+		user: { id: memberId, displayName: kidDisplayName, avatarEmoji: '👧', familyId }
 	};
 }
 
@@ -49,7 +49,7 @@ function mockEvent(session: ReturnType<typeof kidSession>, formDataObj: Record<s
 async function seedRedemptionSetup(kidCoinBalance: number) {
 	const familyId = ulid();
 	const parentId = ulid();
-	const kidId = ulid();
+	const memberId = ulid();
 	const choreId = ulid();
 	const prizeId = ulid();
 
@@ -59,25 +59,40 @@ async function seedRedemptionSetup(kidCoinBalance: number) {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(parents).values({
+	await testDb.insert(members).values({
 		id: parentId,
-		familyId,
+		displayName: 'Test Parent',
+		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
 		passwordHash: await hashPassword('password123'),
-		displayName: 'Test Parent',
+		pin: null,
+		isActive: true,
 		createdAt: now()
 	});
-	await testDb.insert(kids).values({
-		id: kidId,
+	await testDb.insert(familyMembers).values({
+		memberId: parentId,
 		familyId,
+		role: 'admin',
+		joinedAt: now()
+	});
+	await testDb.insert(members).values({
+		id: memberId,
 		displayName: 'Emma',
 		avatarEmoji: '👧',
+		email: null,
+		passwordHash: null,
 		pin: 'hashed',
 		isActive: true,
 		createdAt: now()
 	});
+	await testDb.insert(familyMembers).values({
+		memberId,
+		familyId,
+		role: 'member',
+		joinedAt: now()
+	});
 
-	// Give the kid some coins via chore completions
+	// Give the member some coins via chore completions
 	if (kidCoinBalance > 0) {
 		await testDb.insert(chores).values({
 			id: choreId,
@@ -87,14 +102,14 @@ async function seedRedemptionSetup(kidCoinBalance: number) {
 			emoji: '🛏️',
 			frequency: 'daily',
 			coinValue: kidCoinBalance,
-			assignedKidId: null,
+			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		});
 		await testDb.insert(choreCompletions).values({
 			id: ulid(),
 			choreId,
-			kidId,
+			memberId,
 			familyId,
 			coinsAwarded: kidCoinBalance,
 			periodKey: getPeriodKey('daily', new Date()),
@@ -112,16 +127,16 @@ async function seedRedemptionSetup(kidCoinBalance: number) {
 		createdAt: now()
 	});
 
-	return { familyId, kidId, prizeId, choreId };
+	return { familyId, memberId, prizeId, choreId };
 }
 
 describe('prizes — redeem action', () => {
-	it('redeems a prize when kid has sufficient coins', async () => {
-		const { familyId, kidId, prizeId } = await seedRedemptionSetup(100);
+	it('redeems a prize when member has sufficient coins', async () => {
+		const { familyId, memberId, prizeId } = await seedRedemptionSetup(100);
 		const actions = await getActions();
 
 		const result = await actions.redeem(
-			mockEvent(kidSession(familyId, kidId), { prizeId })
+			mockEvent(kidSession(familyId, memberId), { prizeId })
 		);
 
 		expect(result).toMatchObject({ success: true });
@@ -129,16 +144,16 @@ describe('prizes — redeem action', () => {
 		const redemptions = await testDb.select().from(prizeRedemptions);
 		expect(redemptions).toHaveLength(1);
 		expect(redemptions[0].prizeId).toBe(prizeId);
-		expect(redemptions[0].kidId).toBe(kidId);
+		expect(redemptions[0].memberId).toBe(memberId);
 		expect(redemptions[0].coinCost).toBe(50);
 	});
 
-	it('rejects redemption when kid has insufficient coins', async () => {
-		const { familyId, kidId, prizeId } = await seedRedemptionSetup(30); // needs 50
+	it('rejects redemption when member has insufficient coins', async () => {
+		const { familyId, memberId, prizeId } = await seedRedemptionSetup(30); // needs 50
 		const actions = await getActions();
 
 		const result = await actions.redeem(
-			mockEvent(kidSession(familyId, kidId), { prizeId })
+			mockEvent(kidSession(familyId, memberId), { prizeId })
 		);
 
 		expect((result as { status: number }).status).toBe(400);
@@ -148,19 +163,19 @@ describe('prizes — redeem action', () => {
 		expect(redemptions).toHaveLength(0);
 	});
 
-	it('rejects redemption when kid has zero coins', async () => {
-		const { familyId, kidId, prizeId } = await seedRedemptionSetup(0);
+	it('rejects redemption when member has zero coins', async () => {
+		const { familyId, memberId, prizeId } = await seedRedemptionSetup(0);
 		const actions = await getActions();
 
 		const result = await actions.redeem(
-			mockEvent(kidSession(familyId, kidId), { prizeId })
+			mockEvent(kidSession(familyId, memberId), { prizeId })
 		);
 
 		expect((result as { status: number }).status).toBe(400);
 	});
 
 	it('SC-006: coin balance consistency after mixed completions and redemptions', async () => {
-		const { familyId, kidId, choreId } = await seedRedemptionSetup(100);
+		const { familyId, memberId, choreId } = await seedRedemptionSetup(100);
 
 		// Create a second prize
 		const prize2Id = ulid();
@@ -184,14 +199,14 @@ describe('prizes — redeem action', () => {
 			emoji: '📚',
 			frequency: 'weekly',
 			coinValue: 40,
-			assignedKidId: null,
+			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		});
 		await testDb.insert(choreCompletions).values({
 			id: ulid(),
 			choreId: chore2Id,
-			kidId,
+			memberId,
 			familyId,
 			coinsAwarded: 40,
 			periodKey: getPeriodKey('weekly', new Date()),
@@ -200,7 +215,7 @@ describe('prizes — redeem action', () => {
 
 		// Redeem both prizes
 		const actions = await getActions();
-		await actions.redeem(mockEvent(kidSession(familyId, kidId), { prizeId: prize2Id }));
+		await actions.redeem(mockEvent(kidSession(familyId, memberId), { prizeId: prize2Id }));
 
 		// Total earned = 100 + 40 = 140
 		// Total spent = 30 (prize2)
@@ -208,11 +223,11 @@ describe('prizes — redeem action', () => {
 		const [earnedRow] = await testDb
 			.select({ total: sum(choreCompletions.coinsAwarded) })
 			.from(choreCompletions)
-			.where(eq(choreCompletions.kidId, kidId));
+			.where(eq(choreCompletions.memberId, memberId));
 		const [spentRow] = await testDb
 			.select({ total: sum(prizeRedemptions.coinCost) })
 			.from(prizeRedemptions)
-			.where(eq(prizeRedemptions.kidId, kidId));
+			.where(eq(prizeRedemptions.memberId, memberId));
 
 		const earned = Number(earnedRow?.total ?? 0);
 		const spent = Number(spentRow?.total ?? 0);

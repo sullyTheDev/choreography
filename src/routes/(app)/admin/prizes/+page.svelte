@@ -1,6 +1,8 @@
 ﻿<script lang="ts">
 import type { PageData, ActionData } from './$types.js';
 import { enhance } from '$app/forms';
+import Icon from '@iconify/svelte';
+import { PRIZE_ICON_OPTIONS, resolveIconifyName } from '$lib/icons';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -57,6 +59,14 @@ if (result.type !== 'failure') showCreate = false;
 <input id="description" name="description" type="text" class="input" placeholder="Optional details" />
 </label>
 <label class="label">
+<span>Emoji</span>
+<select id="create-emoji" name="emoji" class="select" required>
+{#each PRIZE_ICON_OPTIONS as option}
+<option value={option.icon} selected={option.icon === 'noto:wrapped-gift'}>{option.label}</option>
+{/each}
+</select>
+</label>
+<label class="label">
 <span>Coin Cost</span>
 <input id="coinCost" name="coinCost" type="number" class="input" min="1" placeholder="e.g. 50" required />
 </label>
@@ -70,11 +80,12 @@ if (result.type !== 'failure') showCreate = false;
 
 <div class="flex flex-col gap-3">
 {#each data.prizes as prize (prize.id)}
-<div class="card preset-outlined-surface-200-800 p-4 space-y-3">
+<div class="card bg-white border border-surface-200 shadow-md p-4 space-y-3">
 <div class="flex justify-between items-start gap-3">
+<span class="text-3xl shrink-0"><Icon icon={resolveIconifyName(prize.emoji, 'noto:wrapped-gift')} class="h-8 w-8" /></span>
 <div class="flex flex-col gap-1 flex-1">
 <strong class="font-semibold">{prize.title}</strong>
-<span class="text-sm text-surface-600-400">🪙 {prize.coinCost} coins</span>
+<span class="text-sm text-surface-600-400 flex items-center gap-1"><Icon icon="noto:coin" class="h-4 w-4" /> {prize.coinCost} coins</span>
 {#if prize.description}
 <p class="text-sm text-surface-600-400 m-0">{prize.description}</p>
 {/if}
@@ -95,7 +106,7 @@ Delete
 </div>
 
 {#if editingPrizeId === prize.id}
-<div class="border-t border-surface-200-800 pt-3 space-y-3">
+<div class="border-t border-surface-200 pt-3 space-y-3">
 <form
 method="POST"
 action="?/update"
@@ -117,6 +128,14 @@ if (result.type !== 'failure') cancelEdit();
 <label class="label">
 <span>Description</span>
 <input id="edit-desc-{prize.id}" name="description" type="text" class="input" value={prize.description} />
+</label>
+<label class="label">
+<span>Emoji</span>
+<select id="edit-emoji-{prize.id}" name="emoji" class="select" required>
+{#each PRIZE_ICON_OPTIONS as option}
+<option value={option.icon} selected={option.icon === resolveIconifyName(prize.emoji, 'noto:wrapped-gift')}>{option.label}</option>
+{/each}
+</select>
 </label>
 <label class="label">
 <span>Coin Cost</span>

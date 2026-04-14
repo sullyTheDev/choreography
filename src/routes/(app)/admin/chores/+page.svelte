@@ -1,10 +1,10 @@
-﻿<script lang="ts">
+<script lang="ts">
 import type { PageData, ActionData } from './$types.js';
 import { enhance } from '$app/forms';
+import Icon from '@iconify/svelte';
+import { CHORE_ICON_OPTIONS, resolveIconifyName } from '$lib/icons';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
-
-const EMOJI_OPTIONS = ['🛏️', '🍽️', '🐕', '🧹', '📚', '🌿', '🚿', '🧺', '🗑️', '🪟', '🧴', '🍎'];
 
 let showCreate = $state(false);
 let editingChoreId = $state<string | null>(null);
@@ -59,8 +59,8 @@ if (result.type !== 'failure') showCreate = false;
 <label class="label">
 <span>Emoji</span>
 <select id="create-emoji" name="emoji" class="select" required>
-{#each EMOJI_OPTIONS as e}
-<option value={e}>{e}</option>
+{#each CHORE_ICON_OPTIONS as option}
+<option value={option.icon}>{option.label}</option>
 {/each}
 </select>
 </label>
@@ -82,11 +82,11 @@ if (result.type !== 'failure') showCreate = false;
 <input id="coinValue" name="coinValue" type="number" class="input" min="1" placeholder="e.g. 10" required />
 </label>
 <label class="label flex-1 min-w-28">
-<span>Assign to Kid</span>
-<select id="assignedKidId" name="assignedKidId" class="select">
-<option value="">All Kids</option>
-{#each data.kids as kid}
-<option value={kid.id}>{kid.displayName}</option>
+<span>Assign to Member</span>
+<select id="assignedMemberId" name="assignedMemberId" class="select">
+<option value="">Unassigned - applies to all</option>
+{#each data.members as member}
+<option value={member.id}>{member.displayName}</option>
 {/each}
 </select>
 </label>
@@ -101,18 +101,18 @@ if (result.type !== 'failure') showCreate = false;
 
 <div class="flex flex-col gap-3">
 {#each data.chores as chore (chore.id)}
-<div class="card preset-outlined-surface-200-800 p-4 space-y-3">
+<div class="card bg-white border border-surface-200 shadow-md p-4 space-y-3">
 <div class="flex items-start gap-3">
-<span class="text-3xl shrink-0">{chore.emoji}</span>
+<span class="text-3xl shrink-0"><Icon icon={resolveIconifyName(chore.emoji)} class="h-8 w-8" /></span>
 <div class="flex-1 flex flex-col gap-1 min-w-0">
 <strong class="font-semibold">{chore.title}</strong>
 <div class="flex items-center gap-2 flex-wrap">
 <span class="badge preset-tonal-primary text-xs">{chore.frequency}</span>
-<span class="text-sm text-surface-600-400">🪙 {chore.coinValue}</span>
-{#if chore.assignedKid}
-<span class="text-sm text-secondary-600-400">→ {chore.assignedKid.displayName}</span>
+<span class="text-sm text-surface-600-400 flex items-center gap-1"><Icon icon="noto:coin" class="h-4 w-4" /> {chore.coinValue}</span>
+{#if chore.assignedMember}
+<span class="text-sm text-secondary-600-400">{chore.assignedMember.displayName}</span>
 {:else}
-<span class="text-sm text-surface-500">All kids</span>
+<span class="text-sm text-surface-500">Unassigned</span>
 {/if}
 </div>
 {#if chore.description}
@@ -135,7 +135,7 @@ Delete
 </div>
 
 {#if editingChoreId === chore.id}
-<div class="border-t border-surface-200-800 pt-3 space-y-3">
+<div class="border-t border-surface-200 pt-3 space-y-3">
 <form
 method="POST"
 action="?/update"
@@ -158,8 +158,8 @@ if (result.type !== 'failure') cancelEdit();
 <label class="label">
 <span>Emoji</span>
 <select id="edit-emoji-{chore.id}" name="emoji" class="select" required>
-{#each EMOJI_OPTIONS as e}
-<option value={e} selected={e === chore.emoji}>{e}</option>
+{#each CHORE_ICON_OPTIONS as option}
+<option value={option.icon} selected={option.icon === resolveIconifyName(chore.emoji)}>{option.label}</option>
 {/each}
 </select>
 </label>
@@ -181,11 +181,11 @@ if (result.type !== 'failure') cancelEdit();
 <input id="edit-coins-{chore.id}" name="coinValue" type="number" class="input" min="1" value={chore.coinValue} required />
 </label>
 <label class="label flex-1 min-w-28">
-<span>Assign to Kid</span>
-<select id="edit-kid-{chore.id}" name="assignedKidId" class="select">
-<option value="" selected={chore.assignedKid === null}>All Kids</option>
-{#each data.kids as kid}
-<option value={kid.id} selected={chore.assignedKid?.id === kid.id}>{kid.displayName}</option>
+<span>Assign to Member</span>
+<select id="edit-kid-{chore.id}" name="assignedMemberId" class="select">
+<option value="" selected={chore.assignedMember === null}>Unassigned - applies to all</option>
+{#each data.members as member}
+<option value={member.id} selected={chore.assignedMember?.id === member.id}>{member.displayName}</option>
 {/each}
 </select>
 </label>

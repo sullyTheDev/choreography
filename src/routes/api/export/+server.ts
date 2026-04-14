@@ -4,8 +4,8 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import {
 	families,
-	parents,
-	kids,
+	members,
+	familyMembers,
 	chores,
 	choreCompletions,
 	prizes,
@@ -14,22 +14,32 @@ import {
 
 export const GET: RequestHandler = async ({ locals }) => {
 	const { session } = locals;
-	if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+	if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 	const familyId = session.familyId;
 
 	const [
 		familyData,
-		parentsData,
-		kidsData,
+		membersData,
 		choresData,
 		prizeData,
 		completionsData,
 		redemptionsData
 	] = await Promise.all([
 		db.select().from(families).where(eq(families.id, familyId)),
-		db.select().from(parents).where(eq(parents.familyId, familyId)),
-		db.select().from(kids).where(eq(kids.familyId, familyId)),
+		db
+			.select({
+				id: members.id,
+				displayName: members.displayName,
+				avatarEmoji: members.avatarEmoji,
+				email: members.email,
+				isActive: members.isActive,
+				createdAt: members.createdAt,
+				role: familyMembers.role
+			})
+			.from(familyMembers)
+			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.where(eq(familyMembers.familyId, familyId)),
 		db.select().from(chores).where(eq(chores.familyId, familyId)),
 		db.select().from(prizes).where(eq(prizes.familyId, familyId)),
 		db.select().from(choreCompletions).where(eq(choreCompletions.familyId, familyId)),
@@ -38,8 +48,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	const payload = {
 		family: familyData[0] ?? null,
-		parents: parentsData.map(({ passwordHash: _, ...rest }) => rest), // omit hashed passwords
-		kids: kidsData.map(({ pin: _, ...rest }) => rest), // omit hashed PINs
+		members: membersData,
 		chores: choresData,
 		choreCompletions: completionsData,
 		prizes: prizeData,

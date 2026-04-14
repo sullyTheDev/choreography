@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 build/
+dist/
 .svelte-kit/
 
 # Data / database
@@ -16,6 +17,7 @@ drizzle/meta/
 
 # Environment
 .env
+.env*
 !.env.example
 
 # Logs

@@ -1,6 +1,7 @@
-﻿<script lang="ts">
+<script lang="ts">
 import type { PageData, ActionData } from './$types.js';
 import PrizeCard from '$lib/components/PrizeCard.svelte';
+import Icon from '@iconify/svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 </script>
@@ -8,8 +9,9 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 <div class="space-y-4">
 <div class="flex justify-between items-center">
 <h1 class="text-2xl font-bold">Prize Shop</h1>
-<span class="badge preset-tonal-primary" aria-label="Your coin balance">
-🪙 <strong>{data.coinBalance}</strong> coins
+<span class="badge preset-tonal-primary" aria-label="Your coin balance: {data.coinBalance} coins">
+<Icon icon="noto:coin" class="h-4 w-4" aria-hidden="true" />
+<strong>{data.coinBalance}</strong>
 </span>
 </div>
 
@@ -24,13 +26,14 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 {#each data.prizes as prize (prize.id)}
 <PrizeCard
 id={prize.id}
+emoji={prize.emoji}
 title={prize.title}
 description={prize.description}
 coinCost={prize.coinCost}
 canAfford={prize.canAfford}
 shortfall={prize.shortfall}
-activeKidId={null}
-userRole="kid"
+activeMemberId={data.activeMemberId}
+memberRole={data.memberRole}
 />
 {/each}
 </div>
