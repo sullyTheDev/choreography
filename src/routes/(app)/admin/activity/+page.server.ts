@@ -1,6 +1,6 @@
 import type { PageServerLoad } from './$types.js';
 import { error } from '@sveltejs/kit';
-import { eq, desc } from 'drizzle-orm';
+import { eq, desc, and } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import {
 	choreCompletions,
@@ -11,7 +11,7 @@ import {
 	familyMembers
 } from '$lib/server/db/schema.js';
 
-const PAGE_SIZE = 25;
+const PAGE_SIZE = 5;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	const { session } = locals;
@@ -19,6 +19,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10));
 	const offset = (page - 1) * PAGE_SIZE;
+	const filter = url.searchParams.get('filter') ?? 'all'; // 'all' | 'completions' | 'redemptions'
+	const memberFilter = url.searchParams.get('member') ?? 'all';
 
 	const familyId = session.familyId;
 
@@ -53,7 +55,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.select({ id: members.id, displayName: members.displayName, avatarEmoji: members.avatarEmoji })
 			.from(familyMembers)
 			.innerJoin(members, eq(familyMembers.memberId, members.id))
-			.where(eq(familyMembers.familyId, familyId)),
+			.where(and(eq(familyMembers.familyId, familyId), eq(members.isActive, true))),
 		db.select({ id: chores.id, title: chores.title }).from(chores).where(eq(chores.familyId, familyId)),
 		db.select({ id: prizes.id, title: prizes.title }).from(prizes).where(eq(prizes.familyId, familyId))
 	]);
@@ -106,8 +108,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	// Sort by occurredAt descending
 	events.sort((a, b) => b.occurredAt.localeCompare(a.occurredAt));
 
-	const totalCount = events.length;
-	const pagedEvents = events.slice(offset, offset + PAGE_SIZE);
+	// Apply type filter
+	const filteredEvents = (filter === 'completions'
+		? events.filter((e) => e.type === 'chore_completion')
+		: filter === 'redemptions'
+			? events.filter((e) => e.type === 'prize_redemption')
+			: events
+	).filter((e) => memberFilter === 'all' || e.memberId === memberFilter);
 
-	return { events: pagedEvents, totalCount, page };
+	const totalCount = filteredEvents.length;
+	const pagedEvents = filteredEvents.slice(offset, offset + PAGE_SIZE);
+
+	return { events: pagedEvents, totalCount, page, filter, memberFilter, members: allMembers };
 };

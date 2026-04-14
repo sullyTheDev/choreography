@@ -46,11 +46,6 @@ let { appName, familyName, user, members, activeMemberId, coinBalance }: Props =
 											   <span>Manage</span>
 										   </a>
 									   </Menu.Item>
-									   <Menu.Item value="settings">
-										   <a href="/admin/settings" class="flex items-center gap-2 w-full px-2 py-2 no-underline text-inherit">
-											   <span>Settings</span>
-										   </a>
-									   </Menu.Item>
 									   <Menu.Separator />
 								   {/if}
 								   <Menu.Item value="logout">

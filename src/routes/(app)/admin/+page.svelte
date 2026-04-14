@@ -13,7 +13,7 @@
 	<h2 class="text-2xl font-bold">Admin</h2>
 	<p class="text-surface-600-400">Manage your family's choreography.</p>
 
-	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+	<div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto w-full">
 		<a
 			href="/admin/chores"
 			class="card border preset-outlined-primary-200-800 shadow-md p-6 flex items-center gap-4 hover:preset-tonal-primary transition-colors no-underline"
@@ -55,6 +55,17 @@
 			<div>
 				<strong class="text-lg font-semibold block">Activity</strong>
 				<span class="text-sm text-surface-600-400">View recent completions and rewards</span>
+			</div>
+		</a>
+
+		<a
+			href="/admin/settings"
+			class="card border preset-outlined-primary-200-800 shadow-md p-6 flex items-center gap-4 hover:preset-tonal-primary transition-colors no-underline"
+		>
+			<Icon icon="material-symbols:settings" class="h-10 w-10 text-primary-500 shrink-0" />
+			<div>
+				<strong class="text-lg font-semibold block">Settings</strong>
+				<span class="text-sm text-surface-600-400">Configure your family's preferences</span>
 			</div>
 		</a>
 	</div>
