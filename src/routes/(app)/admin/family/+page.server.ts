@@ -67,7 +67,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 		.from(familyMembers)
 		.innerJoin(members, eq(familyMembers.memberId, members.id))
-		.where(eq(familyMembers.familyId, session.familyId));
+		.where(and(eq(familyMembers.familyId, session.familyId), eq(members.isActive, true)));
 
 	const rows = await Promise.all(
 		rawMembers.map(async (member) => {

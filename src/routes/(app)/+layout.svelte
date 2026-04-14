@@ -1,6 +1,8 @@
+
 <script lang="ts">
 	import Header from '$lib/components/Header.svelte';
 	import NavTabs from '$lib/components/NavTabs.svelte';
+	import MemberSwitcher from '$lib/components/MemberSwitcher.svelte';
 	import type { LayoutData } from './$types.js';
 	import type { Snippet } from 'svelte';
 
@@ -10,17 +12,16 @@
 	const coinBalance = $derived(activeMember?.coinBalance ?? 0);
 </script>
 
-<div class="min-h-dvh flex flex-col">
-	<Header
-		appName="Chore·ography"
-		familyName={data.family.name}
-		user={data.user}
-		members={data.members}
-		activeMemberId={data.activeMemberId}
-		{coinBalance}
-	/>
 
-	<NavTabs role={data.user.role} activeMemberId={data.activeMemberId} />
+<div class="min-h-dvh flex flex-col">
+   <Header
+	   appName="Chore·ography"
+	   familyName={data.family.name}
+	   user={data.user}
+	   members={data.members}
+	   activeMemberId={data.activeMemberId}
+	   {coinBalance}
+   />
 
 	<main class="flex-1 max-w-screen-lg mx-auto w-full px-4 py-8">
 		{@render children()}

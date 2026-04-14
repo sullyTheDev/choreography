@@ -3,6 +3,8 @@ import type { PageData, ActionData } from './$types.js';
 import { enhance } from '$app/forms';
 import Icon from '@iconify/svelte';
 import { CHORE_ICON_OPTIONS, resolveIconifyName } from '$lib/icons';
+import CoinBadge from '$lib/components/CoinBadge.svelte';
+import FrequencyBadge from '$lib/components/FrequencyBadge.svelte';
 
 let { data, form }: { data: PageData; form: ActionData } = $props();
 
@@ -24,7 +26,7 @@ editingChoreId = null;
 <div class="flex justify-between items-center">
 <h1 class="text-2xl font-bold">Manage Chores</h1>
 <button
-class="btn preset-filled"
+class="btn preset-filled-primary-500"
 onclick={() => { showCreate = !showCreate; editingChoreId = null; }}
 >
 {showCreate ? 'Cancel' : '+ Add Chore'}
@@ -36,7 +38,7 @@ onclick={() => { showCreate = !showCreate; editingChoreId = null; }}
 {/if}
 
 {#if showCreate}
-<div class="card preset-outlined-surface-200-800 p-4 space-y-3">
+<div class="card border preset-outlined-primary-200-800 shadow-md p-4 space-y-3">
 <h2 class="text-lg font-semibold">Add New Chore</h2>
 <form
 method="POST"
@@ -92,7 +94,7 @@ if (result.type !== 'failure') showCreate = false;
 </label>
 </div>
 <div class="flex gap-2">
-<button type="submit" class="btn preset-filled" disabled={submitting}>Create Chore</button>
+<button type="submit" class="btn preset-filled-primary-500" disabled={submitting}>Create Chore</button>
 <button type="button" class="btn hover:preset-tonal" onclick={() => (showCreate = false)}>Cancel</button>
 </div>
 </form>
@@ -101,14 +103,16 @@ if (result.type !== 'failure') showCreate = false;
 
 <div class="flex flex-col gap-3">
 {#each data.chores as chore (chore.id)}
-<div class="card bg-white border border-surface-200 shadow-md p-4 space-y-3">
-<div class="flex items-start gap-3">
-<span class="text-3xl shrink-0"><Icon icon={resolveIconifyName(chore.emoji)} class="h-8 w-8" /></span>
+<div class="card border preset-outlined-primary-200-800 shadow-md p-4 space-y-3">
+<div class="flex justify-between items-center gap-4">
+<div class="shrink-0 flex flex-col items-center gap-1">
+<span class="text-4xl"><Icon icon={resolveIconifyName(chore.emoji)} class="h-12 w-12" /></span>
+<CoinBadge value={chore.coinValue} />
+</div>
 <div class="flex-1 flex flex-col gap-1 min-w-0">
-<strong class="font-semibold">{chore.title}</strong>
+<strong class="text-xl font-semibold">{chore.title}</strong>
 <div class="flex items-center gap-2 flex-wrap">
-<span class="badge preset-tonal-primary text-xs">{chore.frequency}</span>
-<span class="text-sm text-surface-600-400 flex items-center gap-1"><Icon icon="noto:coin" class="h-4 w-4" /> {chore.coinValue}</span>
+<FrequencyBadge value={chore.frequency} />
 {#if chore.assignedMember}
 <span class="text-sm text-secondary-600-400">{chore.assignedMember.displayName}</span>
 {:else}
@@ -119,17 +123,16 @@ if (result.type !== 'failure') showCreate = false;
 <p class="text-sm text-surface-600-400 m-0">{chore.description}</p>
 {/if}
 </div>
-<div class="flex gap-2 shrink-0">
-<button class="btn btn-sm hover:preset-tonal" onclick={() => startEdit(chore.id)}>Edit</button>
+<div class="flex items-center gap-2 shrink-0">
+<button class="btn preset-tonal-primary" aria-label="Edit {chore.title}" onclick={() => startEdit(chore.id)}><Icon icon="material-symbols:edit" class="h-5 w-5" /></button>
 <form method="POST" action="?/delete" use:enhance>
 <input type="hidden" name="choreId" value={chore.id} />
 <button
 type="submit"
-class="btn btn-sm preset-filled-error-500"
+class="btn preset-tonal-error"
+aria-label="Delete {chore.title}"
 onclick={(e) => { if (!confirm(`Delete "${chore.title}"?`)) e.preventDefault(); }}
->
-Delete
-</button>
+><Icon icon="material-symbols:delete" class="h-5 w-5" /></button>
 </form>
 </div>
 </div>
@@ -191,7 +194,7 @@ if (result.type !== 'failure') cancelEdit();
 </label>
 </div>
 <div class="flex gap-2">
-<button type="submit" class="btn preset-filled" disabled={submitting}>Save Changes</button>
+<button type="submit" class="btn preset-filled-primary-500" disabled={submitting}>Save Changes</button>
 <button type="button" class="btn hover:preset-tonal" onclick={cancelEdit}>Cancel</button>
 </div>
 </form>

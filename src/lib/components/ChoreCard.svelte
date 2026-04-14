@@ -3,6 +3,8 @@
     import Icon from '@iconify/svelte';
     import confetti from "canvas-confetti";
     import { resolveIconifyName } from '$lib/icons';
+    import CoinBadge from './CoinBadge.svelte';
+    import FrequencyBadge from './FrequencyBadge.svelte';
 
     interface Props {
         id: string;
@@ -42,30 +44,28 @@
 
 <div
     class="card border  shadow-md p-4 {isCompleted
-        ? 'bg-primary-100-900 border-primary-200-800'
-        : 'bg-white border-surface-200'}"
+        ? 'preset-tonal-primary border-primary-200-800'
+        : 'preset-outlined-primary-200-800'}"
 >
-    <div class="flex items-center gap-3">
-        <span class="text-4xl shrink-0" aria-hidden="true">
-            <Icon icon={resolveIconifyName(emoji)} class="h-9 w-9" />
-        </span>
+    <div class="flex items-center gap-4">
+        <div class="shrink-0 flex flex-col items-center gap-1">
+            <span class="text-4xl" aria-hidden="true">
+                <Icon icon={resolveIconifyName(emoji)} class="h-12 w-12" />
+            </span>
+            <CoinBadge value={coinValue} />
+        </div>
 
         <div class="flex-1 flex flex-col gap-1 min-w-0">
             <div class="flex items-center flex-wrap gap-2">
-                <strong class="text-base font-semibold {isCompleted ? 'line-through' : ''}">{title}</strong>
+                <strong class="text-xl font-semibold {isCompleted ? 'line-through' : ''}">{title}</strong>
                 <div class="flex gap-1 flex-wrap">
-                    <span class="badge preset-tonal-secondary text-xs py-1 px-1.5"
-                        >{frequency}</span
-                    >
+                    <FrequencyBadge value={frequency} />
                 </div>
             </div>
             {#if description}
                 <p class="text-sm text-surface-700-300 m-0">{description}</p>
             {/if}
             <div>
-                                    <span class="badge preset-tonal-warning text-xs py-1 px-1.5"
-                        ><Icon icon="noto:coin" class="h-4 w-4" /> {coinValue}</span
-                    >
                     {#if assignedKidName}
                         <span class="badge preset-tonal-surface text-xs py-1 px-1.5"
                             ><Icon icon="noto:bust-in-silhouette" class="h-4 w-4" /> {assignedKidName}</span
@@ -103,12 +103,29 @@
                     {/if}
                     <button
                         type="submit"
-                        class="btn preset-outlined-primary-500 w-10 h-10 rounded-full p-0"
+                        class="btn preset-outlined-primary-500 w-10 h-10 rounded-full p-0 chore-wiggle-btn"
                         aria-label="Mark {title} as complete"
                         disabled={submitting}
                     >
                         <Icon icon="material-symbols:check" class="h-6 w-6" />
                     </button>
+                <style>
+                .chore-wiggle-btn {
+                    transition: transform 0.15s;
+                }
+                .chore-wiggle-btn:hover {
+                    animation: wiggle 0.4s cubic-bezier(.36,.07,.19,.97) both;
+                }
+                @keyframes wiggle {
+                    0% { transform: rotate(0deg); }
+                    15% { transform: rotate(-15deg); }
+                    30% { transform: rotate(10deg); }
+                    45% { transform: rotate(-10deg); }
+                    60% { transform: rotate(6deg); }
+                    75% { transform: rotate(-4deg); }
+                    100% { transform: rotate(0deg); }
+                }
+                </style>
                 </form>
             {/if}
         </div>

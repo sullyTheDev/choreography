@@ -12,9 +12,9 @@
 	const memberQs = $derived(activeMemberId ? `?member=${activeMemberId}` : '');
 
 	const tabs = $derived([
-		{ href: `/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
-		{ href: `/prizes${memberQs}`, label: 'Prize Shop', icon: 'noto:wrapped-gift' },
-		{ href: `/leaderboard`, label: 'Leaderboard', icon: 'noto:trophy' }
+		{ href: `/member/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
+		{ href: `/member/prizes${memberQs}`, label: 'Prize Shop', icon: 'noto:wrapped-gift' },
+		{ href: `/member/leaderboard`, label: 'Leaderboard', icon: 'noto:trophy' }
 	]);
 
 	const currentPath = $derived(page.url.pathname);

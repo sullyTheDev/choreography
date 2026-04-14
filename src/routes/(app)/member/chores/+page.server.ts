@@ -9,9 +9,7 @@ import { logger } from '$lib/server/logger.js';
 export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const { session } = locals;
 	if (!session) error(401, 'Unauthorized');
-
 	const { activeMemberId, members: layoutMembers } = await parent();
-
 	const memberParam = url.searchParams.get('member');
 	const resolvedMemberId =
 		session.memberRole === 'member'
@@ -70,6 +68,7 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 	const remainingCount = choreList.filter((c) => !c.isCompleted).length;
 	const greeting = `Hey ${member.avatarEmoji} ${member.displayName}!`;
 
+	choreList.sort((a, b) => Number(a.isCompleted) - Number(b.isCompleted));
 	return { greeting, remainingCount, chores: choreList, activeMemberId: resolvedMemberId };
 };
 

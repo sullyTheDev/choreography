@@ -1,10 +1,13 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
+	import Icon from '@iconify/svelte';
 	import { AVATAR_EMOJI_OPTIONS } from '$lib/icons';
+	import CoinBadge from '$lib/components/CoinBadge.svelte';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
 	let editingId = $state<string | null>(null);
+	let showCreate = $state(false);
 	let createRole = $state<'admin' | 'member'>('member');
 
 	function hasAvatarOption(value: string): boolean {
@@ -13,10 +16,25 @@
 </script>
 
 <div class="space-y-4">
-	<h1 class="text-2xl font-bold">Family Members</h1>
-	<div class="card p-4 space-y-3">
+	<div class="flex justify-between items-center">
+		<h1 class="text-2xl font-bold">Family Members</h1>
+		<button
+			class="btn preset-filled-primary-500"
+			onclick={() => { showCreate = !showCreate; editingId = null; }}
+		>
+			{showCreate ? 'Cancel' : '+ Add Member'}
+		</button>
+	</div>
+
+	{#if showCreate}
+	<div class="card border preset-outlined-primary-200-800 shadow-md p-4 space-y-3">
 		<h2 class="text-lg font-semibold">Add Member</h2>
-		<form method="POST" action="?/create" use:enhance class="space-y-3">
+		<form method="POST" action="?/create" use:enhance={() => {
+			return async ({ result, update }) => {
+				await update();
+				if (result.type !== 'failure') showCreate = false;
+			};
+		}} class="space-y-3">
 			<div class="grid md:grid-cols-2 gap-3">
 				<label class="label">
 					<span>Display name</span>
@@ -53,30 +71,32 @@
 					</label>
 				{/if}
 			</div>
-			<button class="btn preset-filled">Add Member</button>
+			<button class="btn preset-filled-primary-500">Add Member</button>
+			<button class="btn" type="button" onclick={() => (showCreate = false)}>Cancel</button>
 		</form>
 	</div>
+	{/if}
 
 	{#if data.members.length === 0}
 		<p class="text-surface-500">No members found.</p>
 	{:else}
 		<div class="grid gap-3">
 			{#each data.members as member (member.id)}
-				<div class="card bg-white border border-surface-200 shadow-md p-4 space-y-3 {member.isActive ? '' : 'opacity-70'}">
-					<div class="flex items-center justify-between gap-2">
-						<div class="flex items-center gap-2">
-						<span>{member.avatarEmoji}</span>
-						<div>
-							<div class="font-semibold">{member.displayName} <span class="text-sm text-surface-500">({member.role})</span></div>
-							<div class="text-sm text-surface-500">{member.coinBalance} coins</div>
+				<div class="card border preset-outlined-primary-200-800 shadow-md p-4 space-y-3">
+					<div class="flex justify-between items-center gap-3">
+						<div class="shrink-0 flex flex-col items-center gap-1">
+							<span class="text-4xl">{member.avatarEmoji}</span>
+							<CoinBadge value={member.coinBalance} />
 						</div>
+						<div class="flex-1">
+							<div class="text-xl font-semibold">{member.displayName} <span class="text-sm text-surface-500">({member.role})</span></div>
 					</div>
 						<div class="flex items-center gap-2">
-							<div class="badge">{member.isActive ? 'Active' : 'Inactive'}</div>
-							<button class="btn btn-sm" onclick={() => (editingId = editingId === member.id ? null : member.id)}>Edit</button>
-							<form method="POST" action="?/deactivate" use:enhance>
-								<input type="hidden" name="id" value={member.id} />
-								<button class="btn btn-sm preset-filled-error-500" disabled={!member.isActive}>Deactivate</button>
+
+						<button class="btn preset-tonal-primary" aria-label="Edit {member.displayName}" onclick={() => (editingId = editingId === member.id ? null : member.id)}><Icon icon="material-symbols:edit" class="h-5 w-5" /></button>
+						<form method="POST" action="?/deactivate" use:enhance>
+							<input type="hidden" name="id" value={member.id} />
+							<button class="btn preset-tonal-error" aria-label="Deactivate {member.displayName}" disabled={!member.isActive}><Icon icon="material-symbols:person-off" class="h-5 w-5" /></button>
 							</form>
 						</div>
 					</div>
@@ -118,7 +138,7 @@
 								<input class="input" name="pin" />
 							</label>
 							<div class="md:col-span-2 flex gap-2">
-								<button class="btn preset-filled">Save</button>
+								<button class="btn preset-filled-primary-500">Save</button>
 								<button class="btn" type="button" onclick={() => (editingId = null)}>Cancel</button>
 							</div>
 						</form>
@@ -128,3 +148,4 @@
 		</div>
 	{/if}
 </div>
+
