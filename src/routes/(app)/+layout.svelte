@@ -6,35 +6,23 @@
 
 	let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
-	const activeKid = $derived(data.kids.find((k) => k.id === data.activeKidId));
-	const coinBalance = $derived(activeKid?.coinBalance ?? 0);
+	const activeMember = $derived(data.members.find((m) => m.id === data.activeMemberId));
+	const coinBalance = $derived(activeMember?.coinBalance ?? 0);
 </script>
 
-<div class="app-shell">
+<div class="min-h-dvh flex flex-col">
 	<Header
 		appName="Chore·ography"
 		familyName={data.family.name}
 		user={data.user}
-		kids={data.kids}
-		activeKidId={data.activeKidId}
+		members={data.members}
+		activeMemberId={data.activeMemberId}
 		{coinBalance}
 	/>
 
-	<NavTabs role={data.user.role} activeKidId={data.activeKidId} />
+	<NavTabs role={data.user.role} activeMemberId={data.activeMemberId} />
 
-	<main class="page-content">
+	<main class="flex-1 max-w-screen-lg mx-auto w-full px-4 py-8">
 		{@render children()}
 	</main>
 </div>
-
-<style>
-	.app-shell {
-		min-height: 100dvh;
-		display: flex;
-		flex-direction: column;
-	}
-
-	main {
-		flex: 1;
-	}
-</style>

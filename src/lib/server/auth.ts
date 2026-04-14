@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
 import { eq, lt } from 'drizzle-orm';
 import { db } from './db/index.js';
-import { sessions, parents, kids } from './db/schema.js';
+import { sessions, members, familyMembers } from './db/schema.js';
 import { now } from './db/utils.js';
 
 const PASSWORD_ROUNDS = 12;
@@ -32,8 +32,8 @@ export function verifyPin(pin: string, hash: string): Promise<boolean> {
 
 export interface SessionPayload {
 	familyId: string;
-	userId: string;
-	userRole: 'parent' | 'kid';
+	memberId: string;
+	memberRole: 'admin' | 'member';
 }
 
 export async function createSession(payload: SessionPayload): Promise<string> {
@@ -44,8 +44,8 @@ export async function createSession(payload: SessionPayload): Promise<string> {
 	await db.insert(sessions).values({
 		id: sessionId,
 		familyId: payload.familyId,
-		userId: payload.userId,
-		userRole: payload.userRole,
+		memberId: payload.memberId,
+		memberRole: payload.memberRole,
 		expiresAt: expiresAt.toISOString(),
 		createdAt: now()
 	});
@@ -82,14 +82,28 @@ export async function pruneExpiredSessions(): Promise<void> {
 
 // ── User lookup helpers ────────────────────────────────────────────────────
 
-export async function getParentById(id: string) {
-	const [parent] = await db.select().from(parents).where(eq(parents.id, id)).limit(1);
-	return parent ?? null;
+export async function getMemberById(id: string) {
+	const [member] = await db.select().from(members).where(eq(members.id, id)).limit(1);
+	return member ?? null;
 }
 
-export async function getKidById(id: string) {
-	const [kid] = await db.select().from(kids).where(eq(kids.id, id)).limit(1);
-	return kid ?? null;
+export async function getMemberByEmail(email: string) {
+	const [member] = await db.select().from(members).where(eq(members.email, email)).limit(1);
+	return member ?? null;
+}
+
+export async function getMemberByDisplayName(displayName: string) {
+	const [member] = await db.select().from(members).where(eq(members.displayName, displayName)).limit(1);
+	return member ?? null;
+}
+
+export async function getMemberFamilyId(memberId: string) {
+	const [link] = await db
+		.select({ familyId: familyMembers.familyId })
+		.from(familyMembers)
+		.where(eq(familyMembers.memberId, memberId))
+		.limit(1);
+	return link?.familyId ?? null;
 }
 
 // Cookie helper — returns the attributes to pass to event.cookies.set()

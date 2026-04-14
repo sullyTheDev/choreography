@@ -2,7 +2,7 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { prizes, prizeRedemptions, choreCompletions, kids } from '$lib/server/db/schema.js';
+import { prizes, prizeRedemptions, choreCompletions, members, familyMembers } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -10,11 +10,16 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { session } = locals;
 	if (!session) error(401, 'Unauthorized');
 
-	const { activeKidId } = await parent();
+	const { activeMemberId } = await parent();
 
-	const effectiveKidId = session.userRole === 'kid' ? session.userId : (activeKidId ?? null);
-	if (!effectiveKidId) {
-		return { prizes: [], coinBalance: 0 };
+	const effectiveMemberId = session.memberRole === 'member' ? session.memberId : (activeMemberId ?? null);
+	if (!effectiveMemberId) {
+		return {
+			prizes: [],
+			coinBalance: 0,
+			activeMemberId: null,
+			memberRole: session.memberRole
+		};
 	}
 
 	const [allPrizes, earnedRow, spentRow] = await Promise.all([
@@ -25,11 +30,11 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 		db
 			.select({ total: sum(choreCompletions.coinsAwarded) })
 			.from(choreCompletions)
-			.where(eq(choreCompletions.kidId, effectiveKidId)),
+			.where(eq(choreCompletions.memberId, effectiveMemberId)),
 		db
 			.select({ total: sum(prizeRedemptions.coinCost) })
 			.from(prizeRedemptions)
-			.where(eq(prizeRedemptions.kidId, effectiveKidId))
+			.where(eq(prizeRedemptions.memberId, effectiveMemberId))
 	]);
 
 	const coinBalance = Number(earnedRow[0]?.total ?? 0) - Number(spentRow[0]?.total ?? 0);
@@ -40,13 +45,19 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 			id: prize.id,
 			title: prize.title,
 			description: prize.description,
+			emoji: prize.emoji,
 			coinCost: prize.coinCost,
 			canAfford,
 			shortfall: canAfford ? 0 : prize.coinCost - coinBalance
 		};
 	});
 
-	return { prizes: prizesWithAfford, coinBalance };
+	return {
+		prizes: prizesWithAfford,
+		coinBalance,
+		activeMemberId: effectiveMemberId,
+		memberRole: session.memberRole
+	};
 };
 
 export const actions: Actions = {
@@ -56,10 +67,28 @@ export const actions: Actions = {
 
 		const data = await request.formData();
 		const prizeId = String(data.get('prizeId') ?? '').trim();
+		const requestedMemberId = String(data.get('memberId') ?? '').trim();
 		if (!prizeId) return fail(400, { error: 'Prize ID is required' });
 
-		const effectiveKidId = session.userRole === 'kid' ? session.userId : null;
-		if (!effectiveKidId) return fail(400, { error: 'Only kids can redeem prizes' });
+		const effectiveMemberId =
+			session.memberRole === 'member' ? session.memberId : requestedMemberId || session.memberId;
+
+		const [selectedMember] = await db
+			.select({ id: members.id })
+			.from(familyMembers)
+			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.where(
+				and(
+					eq(familyMembers.familyId, session.familyId),
+					eq(familyMembers.memberId, effectiveMemberId),
+					eq(members.isActive, true)
+				)
+			)
+			.limit(1);
+
+		if (!selectedMember) {
+			return fail(403, { error: 'Selected member is not active in this family' });
+		}
 
 		// Load the prize
 		const [prize] = await db
@@ -74,12 +103,12 @@ export const actions: Actions = {
 		const [earnedRow] = await db
 			.select({ total: sum(choreCompletions.coinsAwarded) })
 			.from(choreCompletions)
-			.where(eq(choreCompletions.kidId, effectiveKidId));
+			.where(eq(choreCompletions.memberId, effectiveMemberId));
 
 		const [spentRow] = await db
 			.select({ total: sum(prizeRedemptions.coinCost) })
 			.from(prizeRedemptions)
-			.where(eq(prizeRedemptions.kidId, effectiveKidId));
+			.where(eq(prizeRedemptions.memberId, effectiveMemberId));
 
 		const coinBalance = Number(earnedRow?.total ?? 0) - Number(spentRow?.total ?? 0);
 
@@ -91,7 +120,7 @@ export const actions: Actions = {
 		await db.insert(prizeRedemptions).values({
 			id,
 			prizeId,
-			kidId: effectiveKidId,
+			memberId: effectiveMemberId,
 			familyId: session.familyId,
 			coinCost: prize.coinCost,
 			redeemedAt: now()
@@ -101,7 +130,7 @@ export const actions: Actions = {
 			{
 				redemptionId: id,
 				prizeId,
-				kidId: effectiveKidId,
+				memberId: effectiveMemberId,
 				coins: prize.coinCost
 			},
 			'Prize redeemed'

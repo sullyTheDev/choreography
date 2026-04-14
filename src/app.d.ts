@@ -6,14 +6,14 @@ declare global {
 			session: {
 				id: string;
 				familyId: string;
-				userId: string;
-				userRole: 'parent' | 'kid';
+				memberId: string;
+				memberRole: 'admin' | 'member';
 				expiresAt: string;
 				createdAt: string;
 				user: {
 					id: string;
 					displayName: string;
-					avatarEmoji?: string;
+					avatarEmoji: string;
 					familyId: string;
 				};
 			} | null;

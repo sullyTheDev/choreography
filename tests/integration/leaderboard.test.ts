@@ -6,8 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	parents,
-	kids,
+	members,
+	familyMembers,
 	chores,
 	choreCompletions
 } from '../../src/lib/server/db/schema.js';
@@ -22,36 +22,36 @@ function parentSession(familyId: string, parentId: string) {
 	return {
 		id: 'sess-parent-1',
 		familyId,
-		userId: parentId,
-		userRole: 'parent' as const,
+		memberId: parentId,
+		memberRole: 'admin' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
 		user: { id: parentId, displayName: 'Parent', familyId }
 	};
 }
 
-function kidSession(familyId: string, kidId: string, displayName: string) {
+function kidSession(familyId: string, memberId: string, displayName: string) {
 	return {
-		id: `sess-kid-${kidId}`,
+		id: `sess-kid-${memberId}`,
 		familyId,
-		userId: kidId,
-		userRole: 'kid' as const,
+		memberId: memberId,
+		memberRole: 'member' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
-		user: { id: kidId, displayName, avatarEmoji: '🧒', familyId }
+		user: { id: memberId, displayName, avatarEmoji: '🧒', familyId }
 	};
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mockLoadEvent(session: any, kidId?: string): any {
+function mockLoadEvent(session: any, memberId?: string): any {
 	return {
 		locals: { session },
-		url: new URL(`http://localhost/leaderboard${kidId ? `?kid=${kidId}` : ''}`),
+		url: new URL(`http://localhost/leaderboard${memberId ? `?member=${memberId}` : ''}`),
 		parent: async () => ({
 			user: session.user,
 			family: { id: session.familyId, name: 'Test', familyCode: 'CODE', leaderboardResetDay: 1 },
-			kids: [],
-			activeKidId: kidId ?? null
+			members: [],
+			activeMemberId: memberId ?? null
 		})
 	};
 }
@@ -59,8 +59,8 @@ function mockLoadEvent(session: any, kidId?: string): any {
 async function seedLeaderboardSetup() {
 	const familyId = ulid();
 	const parentId = ulid();
-	const kidId1 = ulid();
-	const kidId2 = ulid();
+	const memberId1 = ulid();
+	const memberId2 = ulid();
 	const choreId = ulid();
 	const choreId2 = ulid();
 
@@ -70,33 +70,47 @@ async function seedLeaderboardSetup() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(parents).values({
+	await testDb.insert(members).values({
 		id: parentId,
-		familyId,
+		displayName: 'Test Parent',
+		avatarEmoji: '🧑',
 		email: `parent-lb-${familyId}@example.com`,
 		passwordHash: await hashPassword('password123'),
-		displayName: 'Test Parent',
+		pin: null,
+		isActive: true,
 		createdAt: now()
 	});
-	await testDb.insert(kids).values([
+	await testDb.insert(familyMembers).values({
+		memberId: parentId,
+		familyId,
+		role: 'admin',
+		joinedAt: now()
+	});
+	await testDb.insert(members).values([
 		{
-			id: kidId1,
-			familyId,
+			id: memberId1,
 			displayName: 'Emma',
 			avatarEmoji: '👧',
+			email: null,
+			passwordHash: null,
 			pin: 'hashed',
 			isActive: true,
 			createdAt: now()
 		},
 		{
-			id: kidId2,
-			familyId,
+			id: memberId2,
 			displayName: 'Liam',
 			avatarEmoji: '👦',
+			email: null,
+			passwordHash: null,
 			pin: 'hashed',
 			isActive: true,
 			createdAt: now()
 		}
+	]);
+	await testDb.insert(familyMembers).values([
+		{ memberId: memberId1, familyId, role: 'member', joinedAt: now() },
+		{ memberId: memberId2, familyId, role: 'member', joinedAt: now() }
 	]);
 	await testDb.insert(chores).values([
 		{
@@ -107,7 +121,7 @@ async function seedLeaderboardSetup() {
 			emoji: '🛏️',
 			frequency: 'daily',
 			coinValue: 10,
-			assignedKidId: null,
+			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		},
@@ -119,23 +133,23 @@ async function seedLeaderboardSetup() {
 			emoji: '🍽️',
 			frequency: 'daily',
 			coinValue: 25,
-			assignedKidId: null,
+			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		}
 	]);
 
-	return { familyId, parentId, kidId1, kidId2, choreId, choreId2 };
+	return { familyId, parentId, memberId1, memberId2, choreId, choreId2 };
 }
 
 type LeaderboardData = {
 	period: { start: string; end: string; label: string };
-	rankings: Array<{ rank: number; kidId: string; displayName: string; avatarEmoji: string; coinsEarned: number }>;
+	rankings: Array<{ rank: number; memberId: string; displayName: string; avatarEmoji: string; coinsEarned: number }>;
 };
 
 describe('leaderboard — load', () => {
 	it('returns rankings sorted by coins earned descending', async () => {
-		const { familyId, parentId, kidId1, kidId2, choreId, choreId2 } =
+		const { familyId, parentId, memberId1, memberId2, choreId, choreId2 } =
 			await seedLeaderboardSetup();
 		const load = await getLoad();
 
@@ -145,7 +159,7 @@ describe('leaderboard — load', () => {
 			{
 				id: ulid(),
 				choreId,
-				kidId: kidId1,
+				memberId: memberId1,
 				familyId,
 				coinsAwarded: 10,
 				periodKey,
@@ -154,7 +168,7 @@ describe('leaderboard — load', () => {
 			{
 				id: ulid(),
 				choreId: choreId2,
-				kidId: kidId1,
+				memberId: memberId1,
 				familyId,
 				coinsAwarded: 25,
 				periodKey,
@@ -163,7 +177,7 @@ describe('leaderboard — load', () => {
 			{
 				id: ulid(),
 				choreId,
-				kidId: kidId2,
+				memberId: memberId2,
 				familyId,
 				coinsAwarded: 10,
 				periodKey,
@@ -173,13 +187,16 @@ describe('leaderboard — load', () => {
 
 		const result = (await load(mockLoadEvent(parentSession(familyId, parentId)))) as LeaderboardData;
 
-		expect(result.rankings).toHaveLength(2);
+		expect(result.rankings).toHaveLength(3);
 		expect(result.rankings[0].displayName).toBe('Emma');
 		expect(result.rankings[0].coinsEarned).toBe(35);
 		expect(result.rankings[0].rank).toBe(1);
 		expect(result.rankings[1].displayName).toBe('Liam');
 		expect(result.rankings[1].coinsEarned).toBe(10);
 		expect(result.rankings[1].rank).toBe(2);
+		expect(result.rankings[2].displayName).toBe('Test Parent');
+		expect(result.rankings[2].coinsEarned).toBe(0);
+		expect(result.rankings[2].rank).toBe(3);
 	});
 
 	it('returns period label and start/end dates', async () => {
@@ -196,7 +213,7 @@ describe('leaderboard — load', () => {
 	});
 
 	it('excludes completions outside the current period', async () => {
-		const { familyId, parentId, kidId1, choreId } = await seedLeaderboardSetup();
+		const { familyId, parentId, memberId1, choreId } = await seedLeaderboardSetup();
 		const load = await getLoad();
 
 		// Insert a completion from last week
@@ -207,7 +224,7 @@ describe('leaderboard — load', () => {
 		await testDb.insert(choreCompletions).values({
 			id: ulid(),
 			choreId,
-			kidId: kidId1,
+			memberId: memberId1,
 			familyId,
 			coinsAwarded: 100,
 			periodKey: oldPeriodKey,
@@ -221,24 +238,24 @@ describe('leaderboard — load', () => {
 		expect(emma?.coinsEarned ?? 0).toBe(0);
 	});
 
-	it('returns 0 coins for kids with no completions this period', async () => {
+	it('returns 0 coins for members with no completions this period', async () => {
 		const { familyId, parentId } = await seedLeaderboardSetup();
 		const load = await getLoad();
 
 		const result = (await load(mockLoadEvent(parentSession(familyId, parentId)))) as LeaderboardData;
 
-		expect(result.rankings).toHaveLength(2);
+		expect(result.rankings).toHaveLength(3);
 		result.rankings.forEach((r) => {
 			expect(r.coinsEarned).toBe(0);
 		});
 	});
 
-	it('is accessible to kid role as well', async () => {
-		const { familyId, kidId1 } = await seedLeaderboardSetup();
+	it('is accessible to member role as well', async () => {
+		const { familyId, memberId1 } = await seedLeaderboardSetup();
 		const load = await getLoad();
 
 		// Should not throw for kid role
-		const result = (await load(mockLoadEvent(kidSession(familyId, kidId1, 'Emma')))) as LeaderboardData;
+		const result = (await load(mockLoadEvent(kidSession(familyId, memberId1, 'Emma')))) as LeaderboardData;
 		expect(result.rankings).toBeDefined();
 	});
 });

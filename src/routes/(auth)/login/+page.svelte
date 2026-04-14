@@ -1,171 +1,118 @@
 <script lang="ts">
-	import { enhance } from '$app/forms';
-	import type { ActionData } from './$types.js';
+import { enhance } from '$app/forms';
+import Icon from '@iconify/svelte';
+import type { ActionData } from './$types.js';
 
-	let { form }: { form: ActionData } = $props();
-	let role = $state<'parent' | 'kid'>('parent');
-		const pinPattern = '[0-9]{4,6}';
+let { form }: { form: ActionData } = $props();
+let role = $state<'admin' | 'member'>('admin');
+const pinPattern = '[0-9]{4,6}';
+let submitting = $state(false);
 </script>
-<div class="auth-page">
-	<div class="auth-card card">
-		<h1 class="auth-title">👋 Welcome back</h1>
 
-		<div class="role-switcher" role="group" aria-label="Login as">
-			<button
-				type="button"
-				class="role-btn"
-				class:active={role === 'parent'}
-				onclick={() => (role = 'parent')}
-			>
-				👑 I'm a Parent
-			</button>
-			<button
-				type="button"
-				class="role-btn"
-				class:active={role === 'kid'}
-				onclick={() => (role = 'kid')}
-			>
-				🧒 I'm a Kid
-			</button>
-		</div>
+<div class="min-h-dvh flex items-center justify-center p-4 bg-surface-50-950">
+<div class="card preset-filled-surface-100-900 w-full max-w-sm p-6 space-y-4 shadow-xl">
+<h1 class="text-2xl font-extrabold flex items-center gap-2"><Icon icon="noto:waving-hand" class="h-7 w-7" /> Welcome back</h1>
 
-		{#if form?.error}
-			<p class="error-msg" role="alert">{form.error}</p>
-		{/if}
-
-		<form method="POST" action="?/login" use:enhance>
-			<input type="hidden" name="role" value={role} />
-
-			<div class="fields">
-				{#if role === 'parent'}
-					<div class="field">
-						<label for="email">Email</label>
-						<input
-							id="email"
-							name="email"
-							type="email"
-							placeholder="you@example.com"
-							required
-							autocomplete="email"
-						/>
-					</div>
-
-					<div class="field">
-						<label for="password">Password</label>
-						<input
-							id="password"
-							name="password"
-							type="password"
-							required
-							autocomplete="current-password"
-						/>
-					</div>
-				{:else}
-					<div class="field">
-						<label for="familyCode">Family code</label>
-						<input
-							id="familyCode"
-							name="familyCode"
-							type="text"
-							placeholder="XXXXXXXX"
-							required
-							autocomplete="off"
-							maxlength="8"
-							style="text-transform: uppercase; letter-spacing: 0.15em"
-						/>
-						<span class="field-hint">Found in parent Settings page</span>
-					</div>
-
-					<div class="field">
-						<label for="pin">Your PIN</label>
-						<input
-							id="pin"
-							name="pin"
-							type="password"
-							placeholder="4–6 digit PIN"
-							required
-							autocomplete="current-password"
-							inputmode="numeric"
-							pattern={pinPattern}
-							maxlength="6"
-						/>
-					</div>
-				{/if}
-			</div>
-
-			<button type="submit" class="btn btn-primary btn-full">Sign in →</button>
-		</form>
-
-		{#if role === 'parent'}
-			<p class="auth-footer">New here? <a href="/signup">Create a family account</a></p>
-		{/if}
-	</div>
+<div class="flex gap-2" role="group" aria-label="Login as">
+<button
+type="button"
+class="btn flex-1 {role === 'admin' ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
+onclick={() => (role = 'admin')}
+>
+Admin
+</button>
+<button
+type="button"
+class="btn flex-1 {role === 'member' ? 'preset-filled-primary-500' : 'hover:preset-tonal'}"
+onclick={() => (role = 'member')}
+>
+Member
+</button>
 </div>
 
-<style>
-	.auth-page {
-		min-height: 100dvh;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: var(--space-6) var(--space-4);
-		background: var(--color-bg);
-	}
+{#if form?.error}
+<p class="text-sm text-error-600-400" role="alert">{form.error}</p>
+{/if}
 
-	.auth-card {
-		width: 100%;
-		max-width: 400px;
-	}
+<form
+method="POST"
+action="?/login"
+class="space-y-4"
+use:enhance={() => {
+submitting = true;
+return async ({ update }) => {
+await update();
+submitting = false;
+};
+}}
+>
+<input type="hidden" name="role" value={role} />
 
-	.auth-title {
-		font-size: var(--font-size-2xl);
-		font-weight: 800;
-		margin-bottom: var(--space-5);
-	}
+{#if role === 'admin'}
+<label class="label">
+<span>Email</span>
+<input
+class="input"
+id="email"
+name="email"
+type="email"
+placeholder="you@example.com"
+required
+autocomplete="email"
+/>
+</label>
 
-	.role-switcher {
-		display: flex;
-		gap: var(--space-2);
-		margin-bottom: var(--space-5);
-	}
+<label class="label">
+<span>Password</span>
+<input
+class="input"
+id="password"
+name="password"
+type="password"
+required
+autocomplete="current-password"
+/>
+</label>
+{:else}
+<label class="label">
+<span>Your name</span>
+<input
+class="input"
+id="displayName"
+name="displayName"
+type="text"
+placeholder="Emma"
+required
+autocomplete="name"
+/>
+</label>
 
-	.role-btn {
-		flex: 1;
-		padding: var(--space-3);
-		border: 1.5px solid var(--color-border);
-		border-radius: var(--radius);
-		background: var(--color-bg);
-		font-size: var(--font-size-sm);
-		font-weight: 600;
-		color: var(--color-text-secondary);
-		transition: all 0.15s;
-	}
+<label class="label">
+<span>Your PIN</span>
+<input
+class="input"
+id="pin"
+name="pin"
+type="password"
+placeholder="4-6 digit PIN"
+required
+autocomplete="current-password"
+inputmode="numeric"
+pattern={pinPattern}
+maxlength="6"
+/>
+</label>
+{/if}
 
-	.role-btn.active {
-		background: var(--color-primary-light);
-		border-color: var(--color-primary);
-		color: var(--color-primary-dark);
-	}
+<button type="submit" class="btn preset-filled w-full" disabled={submitting}>
+{submitting ? 'Signing in...' : 'Sign in'}
+</button>
+</form>
 
-	.fields {
-		display: flex;
-		flex-direction: column;
-		gap: var(--space-4);
-		margin-bottom: var(--space-5);
-	}
-
-	.field-hint {
-		font-size: var(--font-size-xs);
-		color: var(--color-text-muted);
-		margin-top: var(--space-1);
-	}
-
-	.btn-full { width: 100%; }
-
-	.auth-footer {
-		text-align: center;
-		margin-top: var(--space-5);
-		font-size: var(--font-size-sm);
-		color: var(--color-text-secondary);
-	}
-</style>
+{#if role === 'admin'}
+<p class="text-center text-sm text-surface-600-400">
+New here? <a href="/signup" class="anchor">Create a family account</a>
+</p>
+{/if}
+</div>
+</div>

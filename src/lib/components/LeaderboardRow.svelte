@@ -1,75 +1,39 @@
-<script lang="ts">
-	let {
-		rank,
-		avatarEmoji,
-		displayName,
-		coinsEarned
-	} = $props<{
-		rank: number;
-		avatarEmoji: string;
-		displayName: string;
-		coinsEarned: number;
-	}>();
+﻿<script lang="ts">
+import Icon from '@iconify/svelte';
+let {
+rank,
+avatarEmoji,
+displayName,
+coinsEarned
+} = $props<{
+rank: number;
+avatarEmoji: string;
+displayName: string;
+coinsEarned: number;
+}>();
 
-	const rankLabel = $derived(
-		rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `#${rank}`
-	);
+const rankIcon = $derived(rank === 1 ? 'noto:1st-place-medal' : rank === 2 ? 'noto:2nd-place-medal' : rank === 3 ? 'noto:3rd-place-medal' : null);
+
+const isTopThree = $derived(rank <= 3);
 </script>
 
 <article
-	class="leaderboard-row"
-	class:top-three={rank <= 3}
-	aria-label="{displayName}: rank {rank}, {coinsEarned} coins this week"
+	class="card bg-white border border-surface-200 shadow-md p-4 flex items-center justify-between gap-4 {isTopThree ? 'border-l-4 border-l-primary-500' : ''}"
+aria-label="{displayName}: rank {rank}, {coinsEarned} coins this week"
 >
-	<span class="rank" aria-hidden="true">{rankLabel}</span>
-	<span class="avatar" aria-hidden="true">{avatarEmoji}</span>
-	<span class="name">{displayName}</span>
-	<span class="coins">
-		<span class="coin-icon" aria-hidden="true">🪙</span>
-		<span class="coin-value">{coinsEarned}</span>
-	</span>
+<span class="text-xl w-10 text-center shrink-0" aria-hidden="true">
+{#if rankIcon}
+<Icon icon={rankIcon} class="h-6 w-6 inline-block" />
+{:else}
+#{rank}
+{/if}
+</span>
+<div class="flex items-center gap-3 flex-1 min-w-0">
+<span class="text-xl shrink-0" aria-hidden="true">{avatarEmoji}</span>
+<span class="font-semibold truncate">{displayName}</span>
+</div>
+<span class="flex items-center gap-1 font-bold text-primary-500 shrink-0">
+<Icon icon="noto:coin" class="h-5 w-5" aria-hidden="true" />
+<span class="text-lg">{coinsEarned}</span>
+</span>
 </article>
-
-<style>
-	.leaderboard-row {
-		display: flex;
-		align-items: center;
-		gap: var(--space-3);
-		padding: var(--space-3) var(--space-4);
-		background: var(--color-surface);
-		border-radius: var(--radius-lg);
-		border: 2px solid transparent;
-	}
-
-	.leaderboard-row.top-three {
-		border-color: var(--color-primary);
-	}
-
-	.rank {
-		font-size: var(--font-size-xl);
-		width: 2.5rem;
-		text-align: center;
-		flex-shrink: 0;
-	}
-
-	.avatar {
-		font-size: var(--font-size-xl);
-	}
-
-	.name {
-		font-weight: 600;
-		flex: 1;
-	}
-
-	.coins {
-		display: flex;
-		align-items: center;
-		gap: var(--space-1);
-		font-weight: 700;
-		color: var(--color-primary);
-	}
-
-	.coin-value {
-		font-size: var(--font-size-lg);
-	}
-</style>

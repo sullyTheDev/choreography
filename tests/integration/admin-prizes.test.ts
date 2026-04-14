@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
-import { families, parents, prizes } from '../../src/lib/server/db/schema.js';
+import { families, members, familyMembers, prizes } from '../../src/lib/server/db/schema.js';
 import { ulid, now } from '../../src/lib/server/db/utils.js';
 import { hashPassword } from '../../src/lib/server/auth.js';
 
@@ -16,15 +16,15 @@ function makeFormData(data: Record<string, string>): FormData {
 	return fd;
 }
 
-function parentSession(familyId: string, userId: string) {
+function parentSession(familyId: string, memberId: string) {
 	return {
 		id: 'sess-1',
 		familyId,
-		userId,
-		userRole: 'parent' as const,
+		memberId,
+		memberRole: 'admin' as const,
 		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
 		createdAt: now(),
-		user: { id: userId, displayName: 'Test Parent', familyId }
+		user: { id: memberId, displayName: 'Test Parent', familyId }
 	};
 }
 
@@ -37,13 +37,21 @@ async function seedFamily() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(parents).values({
+	await testDb.insert(members).values({
 		id: parentId,
-		familyId,
+		displayName: 'Test Parent',
+		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
 		passwordHash: await hashPassword('password123'),
-		displayName: 'Test Parent',
+		pin: null,
+		isActive: true,
 		createdAt: now()
+	});
+	await testDb.insert(familyMembers).values({
+		memberId: parentId,
+		familyId,
+		role: 'admin',
+		joinedAt: now()
 	});
 	return { familyId, parentId };
 }

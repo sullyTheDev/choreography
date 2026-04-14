@@ -1,14 +1,14 @@
 import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { families, parents } from '$lib/server/db/schema.js';
+import { families, members, familyMembers } from '$lib/server/db/schema.js';
 import { hashPassword, createSession, SESSION_COOKIE_NAME, sessionCookieOptions } from '$lib/server/auth.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 import type { Actions, PageServerLoad } from './$types.js';
 
 export const load: PageServerLoad = ({ locals }) => {
-	if (locals.session) redirect(302, locals.session.userRole === 'parent' ? '/admin/chores' : '/chores');
+	if (locals.session) redirect(302, locals.session.memberRole === 'admin' ? '/admin/chores' : '/chores');
 };
 
 export const actions: Actions = {
@@ -17,6 +17,7 @@ export const actions: Actions = {
 		const email = String(data.get('email') ?? '').trim().toLowerCase();
 		const password = String(data.get('password') ?? '');
 		const displayName = String(data.get('displayName') ?? '').trim();
+		const avatarEmoji = String(data.get('avatarEmoji') ?? '').trim() || '👤';
 		const familyName = String(data.get('familyName') ?? '').trim();
 
 		// Validation
@@ -34,23 +35,37 @@ export const actions: Actions = {
 		}
 
 		// Check for duplicate email
-		const [existing] = await db.select().from(parents).where(eq(parents.email, email)).limit(1);
+		const [existing] = await db.select().from(members).where(eq(members.email, email)).limit(1);
 		if (existing) {
 			return fail(409, { error: 'An account with that email already exists.' });
 		}
 
 		const familyId = ulid();
-		const parentId = ulid();
+		const memberId = ulid();
 		const passwordHash = await hashPassword(password);
 
 		await db.insert(families).values({ id: familyId, name: familyName, createdAt: now() });
-		await db.insert(parents).values({ id: parentId, familyId, email, passwordHash, displayName, createdAt: now() });
+		await db.insert(members).values({
+			id: memberId,
+			email,
+			passwordHash,
+			displayName,
+			avatarEmoji,
+			isActive: true,
+			createdAt: now()
+		});
+		await db.insert(familyMembers).values({
+			memberId,
+			familyId,
+			role: 'admin',
+			joinedAt: now()
+		});
 
-		const sessionToken = await createSession({ familyId, userId: parentId, userRole: 'parent' });
+		const sessionToken = await createSession({ familyId, memberId, memberRole: 'admin' });
 		cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
 
-		logger.info({ familyId, parentId }, 'family registered');
+		logger.info({ familyId, memberId }, 'family registered');
 
-		redirect(302, '/admin/kids');
+		redirect(302, '/admin/family');
 	}
 };

@@ -4,8 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import {
 	families,
-	parents,
-	kids,
+	familyMembers,
 	chores,
 	choreCompletions,
 	prizes,
@@ -18,7 +17,7 @@ import { logger } from '$lib/server/logger.js';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const { session } = locals;
-	if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+	if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 	const [family] = await db.select().from(families).where(eq(families.id, session.familyId)).limit(1);
 	if (!family) error(404, 'Family not found');
@@ -36,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 export const actions: Actions = {
 	updateFamily: async ({ request, locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const familyName = String(data.get('familyName') ?? '').trim();
@@ -66,14 +65,14 @@ export const actions: Actions = {
 
 	exportData: async ({ locals }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		redirect(302, '/api/export');
 	},
 
 	deleteFamily: async ({ request, locals, cookies }) => {
 		const { session } = locals;
-		if (!session || session.userRole !== 'parent') error(403, 'Forbidden');
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		const data = await request.formData();
 		const confirm = String(data.get('confirm') ?? '').trim();
@@ -91,9 +90,8 @@ export const actions: Actions = {
 		await db.delete(choreCompletions).where(eq(choreCompletions.familyId, familyId));
 		await db.delete(prizes).where(eq(prizes.familyId, familyId));
 		await db.delete(chores).where(eq(chores.familyId, familyId));
-		await db.delete(kids).where(eq(kids.familyId, familyId));
+		await db.delete(familyMembers).where(eq(familyMembers.familyId, familyId));
 		await db.delete(sessions).where(eq(sessions.familyId, familyId));
-		await db.delete(parents).where(eq(parents.familyId, familyId));
 		await db.delete(families).where(eq(families.id, familyId));
 
 		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
