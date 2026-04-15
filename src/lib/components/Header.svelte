@@ -2,6 +2,7 @@
 import { enhance } from '$app/forms';
 import { AppBar, Menu, Portal } from '@skeletonlabs/skeleton-svelte';
 import MemberSwitcher from './MemberSwitcher.svelte';
+import LightSwitch from './LightSwitch.svelte';
 
 interface Props {
 appName: string;
@@ -39,22 +40,23 @@ let { appName, familyName, user, members, activeMemberId, coinBalance }: Props =
 					   </Menu.Trigger>
 					   <Portal>
 						   <Menu.Positioner class="z-50!">
-							   <Menu.Content class="min-w-40">
-								   {#if user.role === 'admin'}
+							   <Menu.Content class="min-w-40">							   <div class="flex items-center justify-between gap-4 px-3 py-2">
+							   <span class="text-sm">Dark Mode</span>
+							   <LightSwitch />
+						   </div>								   {#if user.role === 'admin'}
 									   <Menu.Item value="manage">
 									   <a href="/admin" class="flex items-center gap-2 w-full px-2 py-2 no-underline text-inherit">
 											   <span>Manage</span>
 										   </a>
 									   </Menu.Item>
 									   <Menu.Item value="kiosk">
-										   <a href="/kiosk/chores" class="flex items-center gap-2 w-full px-2 py-2 no-underline text-inherit">
+										   <a href="/kiosk" class="flex items-center gap-2 w-full px-2 py-2 no-underline text-inherit">
 											   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
 											   <span>Kiosk Mode</span>
 										   </a>
 									   </Menu.Item>
 									   <Menu.Separator />
-								   {/if}
-								   <Menu.Item value="logout">
+								   {/if}							   <Menu.Item value="logout">
 									   <form method="POST" action="/logout" use:enhance style="display:contents; width:100%">
 										   <button type="submit" class="flex items-center gap-2 w-full px-2 py-2 text-left bg-transparent border-0 cursor-pointer">
 											   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5">

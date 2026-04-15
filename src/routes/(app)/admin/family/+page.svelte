@@ -71,13 +71,25 @@
 						<input class="input" name="email" type="email" required />
 					</label>
 					<label class="label">
-						<span>Password</span>
+						<span>Password <span class="text-xs text-surface-500 font-normal">(8+ characters)</span></span>
 						<input class="input" name="password" type="password" minlength="8" required />
+					</label>
+					<label class="label">
+						<span>PIN <span class="text-xs text-surface-500 font-normal">(optional, 4-6 digits)</span></span>
+						<input class="input" name="pin" type="password" inputmode="numeric" pattern="[0-9][0-9][0-9][0-9][0-9]?[0-9]?" maxlength="6" placeholder="e.g. 1234" />
+						<p class="text-xs text-surface-500 flex items-center gap-1 mt-0.5">
+							<Icon icon="noto:television" class="h-3 w-3 shrink-0" />
+							Used for quick unlock in <strong>Kiosk mode</strong>
+						</p>
 					</label>
 				{:else}
 					<label class="label">
-						<span>PIN (4-6 digits)</span>
-						<input class="input" name="pin" pattern="[0-9][0-9][0-9][0-9]([0-9][0-9])?" required />
+						<span>PIN <span class="text-xs text-surface-500 font-normal">(4-6 digits)</span></span>
+						<input class="input" name="pin" type="password" inputmode="numeric" pattern="[0-9][0-9][0-9][0-9][0-9]?[0-9]?" maxlength="6" required />
+						<p class="text-xs text-surface-500 flex items-center gap-1 mt-0.5">
+							<Icon icon="noto:television" class="h-3 w-3 shrink-0" />
+							Used for quick unlock in <strong>Kiosk mode</strong>
+						</p>
 					</label>
 				{/if}
 			</div>
@@ -136,16 +148,20 @@
 								</select>
 							</label>
 							<label class="label">
-								<span>Email (for admin)</span>
+								<span>Email <span class="text-xs text-surface-500 font-normal">(admin only)</span></span>
 								<input class="input" name="email" value={member.email ?? ''} />
 							</label>
 							<label class="label">
-								<span>Password (optional)</span>
+								<span>Password <span class="text-xs text-surface-500 font-normal">(admin only, leave blank to keep)</span></span>
 								<input class="input" name="password" type="password" />
 							</label>
 							<label class="label">
-								<span>PIN (for member)</span>
-								<input class="input" name="pin" />
+								<span>PIN <span class="text-xs text-surface-500 font-normal">(4-6 digits, leave blank to keep)</span></span>
+								<input class="input" name="pin" type="password" inputmode="numeric" pattern="[0-9][0-9][0-9][0-9][0-9]?[0-9]?" maxlength="6" placeholder="leave blank to keep" />
+								<p class="text-xs text-surface-500 flex items-center gap-1 mt-0.5">
+									<Icon icon="noto:television" class="h-3 w-3 shrink-0" />
+									Used for quick unlock in <strong>Kiosk mode</strong>
+								</p>
 							</label>
 							<div class="md:col-span-2 flex gap-2">
 								<button class="btn preset-filled-primary-500">Save</button>

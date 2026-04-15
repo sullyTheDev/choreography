@@ -24,7 +24,7 @@ async function ensurePinUniqueInFamily(familyId: string, pin: string, excludeMem
 		.select({ id: members.id, pin: members.pin })
 		.from(familyMembers)
 		.innerJoin(members, eq(familyMembers.memberId, members.id))
-		.where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.role, 'member'), eq(members.isActive, true)));
+		.where(and(eq(familyMembers.familyId, familyId), eq(members.isActive, true)));
 
 	if (excludeMemberId) {
 		query = db
@@ -34,7 +34,6 @@ async function ensurePinUniqueInFamily(familyId: string, pin: string, excludeMem
 			.where(
 				and(
 					eq(familyMembers.familyId, familyId),
-					eq(familyMembers.role, 'member'),
 					eq(members.isActive, true),
 					ne(members.id, excludeMemberId)
 				)
@@ -122,6 +121,13 @@ export const actions: Actions = {
 			if (existingEmail) return fail(409, { error: 'Email already exists.' });
 
 			passwordHash = await hashPassword(password);
+
+			if (pin) {
+				if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
+				const unique = await ensurePinUniqueInFamily(session.familyId, pin);
+				if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
+				pinHash = await hashPin(pin);
+			}
 		} else {
 			if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
 			const unique = await ensurePinUniqueInFamily(session.familyId, pin);
@@ -204,12 +210,20 @@ export const actions: Actions = {
 				if (password.length < 8) return fail(400, { error: 'Password must be at least 8 characters.' });
 				passwordHashUpdate = await hashPassword(password);
 			}
-			pinHashUpdate = null;
+
+			if (pin) {
+				if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
+				const unique = await ensurePinUniqueInFamily(session.familyId, pin, id);
+				if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
+				pinHashUpdate = await hashPin(pin);
+			}
 		} else {
-			if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
-			const unique = await ensurePinUniqueInFamily(session.familyId, pin, id);
-			if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
-			pinHashUpdate = await hashPin(pin);
+			if (pin) {
+				if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
+				const unique = await ensurePinUniqueInFamily(session.familyId, pin, id);
+				if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
+				pinHashUpdate = await hashPin(pin);
+			}
 			passwordHashUpdate = null;
 		}
 

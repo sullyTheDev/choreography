@@ -2,7 +2,7 @@ import { fail, redirect } from '@sveltejs/kit';
 import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import { families, members, familyMembers } from '$lib/server/db/schema.js';
-import { hashPassword, createSession, SESSION_COOKIE_NAME, sessionCookieOptions } from '$lib/server/auth.js';
+import { hashPassword, hashPin, createSession, SESSION_COOKIE_NAME, sessionCookieOptions } from '$lib/server/auth.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 import type { Actions, PageServerLoad } from './$types.js';
@@ -16,6 +16,7 @@ export const actions: Actions = {
 		const data = await request.formData();
 		const email = String(data.get('email') ?? '').trim().toLowerCase();
 		const password = String(data.get('password') ?? '');
+		const pin = String(data.get('pin') ?? '').trim();
 		const displayName = String(data.get('displayName') ?? '').trim();
 		const avatarEmoji = String(data.get('avatarEmoji') ?? '').trim() || '👤';
 		const familyName = String(data.get('familyName') ?? '').trim();
@@ -26,6 +27,9 @@ export const actions: Actions = {
 		}
 		if (password.length < 8) {
 			return fail(400, { error: 'Password must be at least 8 characters.' });
+		}
+		if (pin && !/^\d{4,6}$/.test(pin)) {
+			return fail(400, { error: 'PIN must be 4-6 digits.' });
 		}
 		if (!displayName) {
 			return fail(400, { error: 'Your name is required.' });
@@ -43,12 +47,14 @@ export const actions: Actions = {
 		const familyId = ulid();
 		const memberId = ulid();
 		const passwordHash = await hashPassword(password);
+		const pinHash = pin ? await hashPin(pin) : null;
 
 		await db.insert(families).values({ id: familyId, name: familyName, createdAt: now() });
 		await db.insert(members).values({
 			id: memberId,
 			email,
 			passwordHash,
+			pin: pinHash,
 			displayName,
 			avatarEmoji,
 			isActive: true,

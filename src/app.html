@@ -1,10 +1,17 @@
 <!doctype html>
-<html lang="en" data-theme="mona" style="color-scheme: light">
+<html lang="en" data-theme="mona" data-mode="light">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="%sveltekit.assets%/favicon.ico" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<meta name="description" content="Choreography — family chore management" />
+		<script>
+			(function () {
+				var mode = localStorage.getItem('mode') || 'light';
+				document.documentElement.setAttribute('data-mode', mode);
+				document.documentElement.style.colorScheme = mode;
+			})();
+		</script>
 		%sveltekit.head%
 	</head>
 	<body data-sveltekit-preload-data="hover">

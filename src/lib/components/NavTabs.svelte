@@ -15,7 +15,7 @@
 	const tabs = $derived([
 		{ href: `${base}/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
 		{ href: `${base}/prizes${memberQs}`, label: 'Prize Shop', icon: 'noto:wrapped-gift' },
-		{ href: `${base}/leaderboard`, label: 'Leaderboard', icon: 'noto:trophy' }
+		{ href: `${base}/leaderboard${memberQs}`, label: 'Leaderboard', icon: 'noto:trophy' }
 	]);
 
 	const currentPath = $derived(page.url.pathname);

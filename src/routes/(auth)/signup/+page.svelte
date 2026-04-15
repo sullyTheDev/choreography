@@ -156,6 +156,18 @@
                     <input class="input" id="password" name="password" type="password" required autocomplete="new-password" minlength="8" />
                 </label>
 
+                <label class="label">
+                    <span class="flex items-center gap-1">
+                        <Icon icon="noto:input-numbers" class="h-3.5 w-3.5" /> PIN
+                        <span class="text-xs text-surface-500 font-normal">(optional, 4-6 digits)</span>
+                    </span>
+                    <input class="input" id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9][0-9][0-9][0-9][0-9]?[0-9]?" maxlength="6" placeholder="e.g. 1234" autocomplete="new-password" />
+                    <p class="text-xs text-surface-500 flex items-center gap-1 mt-0.5">
+                        <Icon icon="noto:television" class="h-3 w-3 shrink-0" />
+                        Used for quick unlock in <strong>Kiosk mode</strong>
+                    </p>
+                </label>
+
                 <button type="submit" class="btn preset-filled-primary-500 w-full gap-2" disabled={submitting}>
                     {#if submitting}
                         <Icon icon="noto:hourglass-not-done" class="h-4 w-4" /> Creating your family…

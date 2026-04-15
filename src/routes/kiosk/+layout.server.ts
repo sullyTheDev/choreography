@@ -42,8 +42,6 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	if (memberParam && validIds.has(memberParam)) {
 		activeMemberId = memberParam;
-	} else if (membersWithBalances.length > 0) {
-		activeMemberId = membersWithBalances[0].id;
 	}
 
 	return {
