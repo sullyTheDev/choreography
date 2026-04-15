@@ -1,7 +1,8 @@
 <script lang="ts">
     import Icon from "@iconify/svelte";
-    import { Toast, createToaster } from "@skeletonlabs/skeleton-svelte";
+    import { Dialog, Portal, Toast, createToaster } from "@skeletonlabs/skeleton-svelte";
     import { enhance } from "$app/forms";
+    import { goto } from "$app/navigation";
 
     let { data, form } = $props<{
         data: {
@@ -12,7 +13,7 @@
                 leaderboardResetDay: number;
             };
         };
-        form?: { success?: boolean; error?: string } | null;
+        form?: { success?: boolean; error?: string; deleted?: boolean } | null;
     }>();
 
     const DAY_NAMES = [
@@ -25,6 +26,8 @@
         "Sunday",
     ];
     let submitting = $state(false);
+    let deleteConfirm = $state('');
+    let showDeletedDialog = $state(false);
     const toaster = createToaster();
 </script>
 
@@ -149,8 +152,13 @@
             class="space-y-3"
             use:enhance={() => {
                 submitting = true;
-                return async ({ update }) => {
-                    await update();
+                return async ({ result, update }) => {
+                    if (result.type === 'success' && (result.data as Record<string, unknown>)?.deleted) {
+                        submitting = false;
+                        showDeletedDialog = true;
+                        return; // skip update() — page load would redirect since session is gone
+                    }
+                    await update({ reset: false });
                     submitting = false;
                 };
             }}
@@ -163,17 +171,48 @@
                     type="text"
                     class="input"
                     placeholder="DELETE"
+                    bind:value={deleteConfirm}
                     required
                 />
             </label>
             <button
                 type="submit"
                 class="btn preset-filled-error-500"
-                disabled={submitting}>Delete Family</button
+                disabled={submitting || deleteConfirm !== 'DELETE'}>Delete Family</button
             >
         </form>
     </div>
 </section>
+
+<!-- Family deleted confirmation dialog -->
+<Dialog
+    open={showDeletedDialog}
+    closeOnEscape={false}
+    closeOnInteractOutside={false}
+>
+    <Portal>
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/70" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+            <Dialog.Content class="card preset-filled-surface-100-900 w-full max-w-sm p-6 space-y-4 shadow-xl">
+                <div class="flex flex-col items-center text-center gap-3">
+                    <Icon icon="noto:disappointed-face" class="h-12 w-12" />
+                    <Dialog.Title class="text-xl font-bold">So long, farewell…</Dialog.Title>
+                    <Dialog.Description class="text-sm text-surface-600-400 space-y-2">
+                        <p>We're sad to see your family go. All data has been permanently deleted from the database and cannot be recovered.</p>
+                        <p>You can rejoin by signing up at any time. We hope to see you again someday!</p>
+                    </Dialog.Description>
+                </div>
+                <button
+                    type="button"
+                    class="btn preset-filled-primary-500 w-full"
+                    onclick={() => goto('/login')}
+                >
+                    Go to Login
+                </button>
+            </Dialog.Content>
+        </Dialog.Positioner>
+    </Portal>
+</Dialog>
 
 <Toast.Group {toaster}>
     {#snippet children(toast)}
@@ -186,7 +225,7 @@
                 <Toast.Description>{toast.description}</Toast.Description>
             </Toast.Message>
             <Toast.CloseTrigger class="btn btn-icon btn-sm ml-auto"
-                >�</Toast.CloseTrigger
+                >�</Toast.CloseTrigger
             >
         </Toast>
     {/snippet}

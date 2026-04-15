@@ -198,7 +198,6 @@ describe('prizes — redeem action', () => {
 			emoji: '📚',
 			frequency: 'weekly',
 			coinValue: 40,
-			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		});

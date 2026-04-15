@@ -39,7 +39,7 @@ export const actions: Actions = {
 			cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
 
 			logger.info({ memberId: member.id }, 'admin login');
-			redirect(302, '/admin/chores');
+			redirect(302, '/member/chores');
 		} else {
 			const displayName = String(data.get('displayName') ?? '').trim();
 			const pin = String(data.get('pin') ?? '').trim();
@@ -54,9 +54,9 @@ export const actions: Actions = {
 
 			const sessionToken = await createSession({ familyId, memberId: member.id, memberRole: 'member' });
 			cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
-
+			
 			logger.info({ memberId: member.id }, 'member login');
-			redirect(302, '/chores');
+			redirect(302, 'member/chores');
 		}
 	},
 
