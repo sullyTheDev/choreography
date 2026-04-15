@@ -9,14 +9,15 @@ import {
 	members,
 	familyMembers,
 	chores,
-	choreCompletions
+	choreCompletions,
+	choreAssignments
 } from '../../src/lib/server/db/schema.js';
 import { ulid, now } from '../../src/lib/server/db/utils.js';
 import { hashPassword } from '../../src/lib/server/auth.js';
 import { eq } from 'drizzle-orm';
 
 const getActions = async () =>
-	(await import('../../src/routes/(app)/chores/+page.server.js')).actions;
+	(await import('../../src/routes/(app)/member/chores/+page.server.js')).actions;
 
 function makeFormData(data: Record<string, string>): FormData {
 	const fd = new FormData();
@@ -96,10 +97,13 @@ async function seedChoreSetup() {
 		emoji: '🛏️',
 		frequency: 'daily',
 		coinValue: 10,
-		assignedMemberId: null,
 		isActive: true,
 		createdAt: now()
 	});
+	await testDb.insert(choreAssignments).values([
+		{ choreId, memberId: parentId },
+		{ choreId, memberId }
+	]);
 
 	return { familyId, parentId, memberId, choreId };
 }
@@ -193,10 +197,11 @@ describe('chores — complete action', () => {
 			emoji: '🐕',
 			frequency: 'daily',
 			coinValue: 5,
-			assignedMemberId: kid2Id, // assigned to kid2
 			isActive: true,
 			createdAt: now()
 		});
+		// Only kid2 is assigned to this chore
+		await testDb.insert(choreAssignments).values({ choreId: assignedChoreId, memberId: kid2Id });
 
 		const actions = await getActions();
 		// kid1 tries to complete kid2's chore
@@ -231,10 +236,10 @@ describe('chores — complete action', () => {
 			emoji: '📚',
 			frequency: 'weekly',
 			coinValue: 25,
-			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		});
+		await testDb.insert(choreAssignments).values({ choreId: weeklyChoreId, memberId });
 
 		const actions = await getActions();
 		await actions.complete(mockKidEvent(kidSession(familyId, memberId), { choreId: weeklyChoreId }));

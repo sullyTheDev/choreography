@@ -105,7 +105,6 @@ async function seedActivityData() {
 		emoji: '🛏️',
 		frequency: 'daily',
 		coinValue: 10,
-		assignedMemberId: null,
 		isActive: true,
 		createdAt: now()
 	});

@@ -52,7 +52,6 @@ export const chores = sqliteTable(
 		emoji: text('emoji').notNull(),
 		frequency: text('frequency', { enum: ['daily', 'weekly'] }).notNull(),
 		coinValue: integer('coin_value').notNull(),
-		assignedMemberId: text('assigned_member_id').references(() => members.id),
 		isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
 		createdAt: text('created_at').notNull()
 	},
@@ -98,6 +97,22 @@ export const prizes = sqliteTable(
 		createdAt: text('created_at').notNull()
 	},
 	(table) => [index('idx_prize_family').on(table.familyId, table.isActive)]
+);
+
+export const choreAssignments = sqliteTable(
+	'chore_assignments',
+	{
+		choreId: text('chore_id')
+			.notNull()
+			.references(() => chores.id),
+		memberId: text('member_id')
+			.notNull()
+			.references(() => members.id)
+	},
+	(table) => [
+		primaryKey({ columns: [table.choreId, table.memberId] }),
+		index('idx_chore_assignment_member').on(table.memberId)
+	]
 );
 
 export const prizeAssignments = sqliteTable(

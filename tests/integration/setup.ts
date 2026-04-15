@@ -30,6 +30,8 @@ vi.mock('$lib/server/db/index.js', () => ({
 afterEach(async () => {
 	await testDb.delete(schema.prizeRedemptions);
 	await testDb.delete(schema.choreCompletions);
+	await testDb.delete(schema.choreAssignments);
+	await testDb.delete(schema.prizeAssignments);
 	await testDb.delete(schema.sessions);
 	await testDb.delete(schema.chores);
 	await testDb.delete(schema.prizes);

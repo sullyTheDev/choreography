@@ -2,7 +2,7 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, choreCompletions, members, familyMembers } from '$lib/server/db/schema.js';
+import { chores, choreCompletions, members, familyMembers, choreAssignments } from '$lib/server/db/schema.js';
 import { ulid, now, getPeriodKey } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -27,15 +27,19 @@ export const load: PageServerLoad = async ({ locals, url, parent }) => {
 
 	const today = new Date();
 
-	// Load active chores for this family (assigned to this kid or unassigned)
+	// Load active chores for this family and filter by member's assignments
 	const familyChores = await db
 		.select()
 		.from(chores)
 		.where(and(eq(chores.familyId, session.familyId), eq(chores.isActive, true)));
 
-	const visibleChores = familyChores.filter(
-		(c) => c.assignedMemberId === null || c.assignedMemberId === resolvedMemberId
-	);
+	const memberAssignmentRows = await db
+		.select({ choreId: choreAssignments.choreId })
+		.from(choreAssignments)
+		.where(eq(choreAssignments.memberId, resolvedMemberId));
+
+	const assignedChoreIds = new Set(memberAssignmentRows.map((r) => r.choreId));
+	const visibleChores = familyChores.filter((c) => assignedChoreIds.has(c.id));
 
 	// Get all completions by this kid this relevant period
 	const periodKeys = new Set(visibleChores.map((c) => getPeriodKey(c.frequency, today)));
@@ -110,9 +114,17 @@ export const actions: Actions = {
 
 		if (!chore || !chore.isActive) return fail(404, { error: 'Chore not found' });
 
-		// Verify the chore is accessible to this kid
-		if (chore.assignedMemberId !== null && chore.assignedMemberId !== effectiveMemberId) {
-			return fail(403, { error: 'This chore is assigned to a different member' });
+		// Verify the chore is accessible to this member
+		const [assignment] = await db
+			.select({ choreId: choreAssignments.choreId })
+			.from(choreAssignments)
+			.where(
+				and(eq(choreAssignments.choreId, choreId), eq(choreAssignments.memberId, effectiveMemberId))
+			)
+			.limit(1);
+
+		if (!assignment) {
+			return fail(403, { error: 'This chore is not assigned to you' });
 		}
 
 		const today = new Date();

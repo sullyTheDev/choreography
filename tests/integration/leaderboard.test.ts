@@ -16,7 +16,7 @@ import { hashPassword } from '../../src/lib/server/auth.js';
 import { eq } from 'drizzle-orm';
 
 const getLoad = async () =>
-	(await import('../../src/routes/(app)/leaderboard/+page.server.js')).load;
+	(await import('../../src/routes/(app)/member/leaderboard/+page.server.js')).load;
 
 function parentSession(familyId: string, parentId: string) {
 	return {
@@ -121,7 +121,6 @@ async function seedLeaderboardSetup() {
 			emoji: '🛏️',
 			frequency: 'daily',
 			coinValue: 10,
-			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		},
@@ -133,7 +132,6 @@ async function seedLeaderboardSetup() {
 			emoji: '🍽️',
 			frequency: 'daily',
 			coinValue: 25,
-			assignedMemberId: null,
 			isActive: true,
 			createdAt: now()
 		}

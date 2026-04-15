@@ -11,6 +11,8 @@ let { data, form }: { data: PageData; form: ActionData } = $props();
 let showCreate = $state(false);
 let editingChoreId = $state<string | null>(null);
 let submitting = $state(false);
+let createMemberError = $state('');
+let editMemberError = $state('');
 
 function startEdit(choreId: string) {
 editingChoreId = choreId;
@@ -44,7 +46,14 @@ onclick={() => { showCreate = !showCreate; editingChoreId = null; }}
 method="POST"
 action="?/create"
 class="space-y-3"
-use:enhance={({ formElement, formData, cancel }) => {
+use:enhance={({ formElement, cancel }) => {
+const checked = formElement.querySelectorAll('input[name="memberIds"]:checked');
+if (checked.length === 0) {
+createMemberError = 'Please assign this chore to at least one member';
+cancel();
+return;
+}
+createMemberError = '';
 submitting = true;
 return async ({ result, update }) => {
 await update();
@@ -83,16 +92,19 @@ if (result.type !== 'failure') showCreate = false;
 <span>Coin Value</span>
 <input id="coinValue" name="coinValue" type="number" class="input" min="1" placeholder="e.g. 10" required />
 </label>
-<label class="label flex-1 min-w-28">
-<span>Assign to Member</span>
-<select id="assignedMemberId" name="assignedMemberId" class="select">
-<option value="">Unassigned - applies to all</option>
-{#each data.members as member}
-<option value={member.id}>{member.displayName}</option>
-{/each}
-</select>
-</label>
 </div>
+<fieldset class="space-y-1">
+<legend class="text-sm font-medium">Assigned to</legend>
+{#if createMemberError}<p class="text-sm text-error-500">{createMemberError}</p>{/if}
+<div class="flex flex-wrap gap-3 pt-1">
+{#each data.members as m}
+<label class="flex items-center gap-1.5 cursor-pointer">
+<input type="checkbox" name="memberIds" value={m.id} checked class="checkbox" />
+<span class="text-sm">{m.avatarEmoji} {m.displayName}</span>
+</label>
+{/each}
+</div>
+</fieldset>
 <div class="flex gap-2">
 <button type="submit" class="btn preset-filled-primary-500" disabled={submitting}>Create Chore</button>
 <button type="button" class="btn hover:preset-tonal" onclick={() => (showCreate = false)}>Cancel</button>
@@ -143,7 +155,14 @@ onclick={(e) => { if (!confirm(`Delete "${chore.title}"?`)) e.preventDefault(); 
 method="POST"
 action="?/update"
 class="space-y-3"
-use:enhance={({ formElement, formData, cancel }) => {
+use:enhance={({ formElement, cancel }) => {
+const checked = formElement.querySelectorAll('input[name="memberIds"]:checked');
+if (checked.length === 0) {
+editMemberError = 'Please assign this chore to at least one member';
+cancel();
+return;
+}
+editMemberError = '';
 submitting = true;
 return async ({ result, update }) => {
 await update();
@@ -183,16 +202,19 @@ if (result.type !== 'failure') cancelEdit();
 <span>Coin Value</span>
 <input id="edit-coins-{chore.id}" name="coinValue" type="number" class="input" min="1" value={chore.coinValue} required />
 </label>
-<label class="label flex-1 min-w-28">
-<span>Assign to Member</span>
-<select id="edit-kid-{chore.id}" name="assignedMemberId" class="select">
-<option value="" selected={chore.assignedMember === null}>Unassigned - applies to all</option>
-{#each data.members as member}
-<option value={member.id} selected={chore.assignedMember?.id === member.id}>{member.displayName}</option>
-{/each}
-</select>
-</label>
 </div>
+<fieldset class="space-y-1">
+<legend class="text-sm font-medium">Assigned to</legend>
+{#if editMemberError}<p class="text-sm text-error-500">{editMemberError}</p>{/if}
+<div class="flex flex-wrap gap-3 pt-1">
+{#each data.members as m}
+<label class="flex items-center gap-1.5 cursor-pointer">
+<input type="checkbox" name="memberIds" value={m.id} checked={chore.assignedMemberIds.includes(m.id)} class="checkbox" />
+<span class="text-sm">{m.avatarEmoji} {m.displayName}</span>
+</label>
+{/each}
+</div>
+</fieldset>
 <div class="flex gap-2">
 <button type="submit" class="btn preset-filled-primary-500" disabled={submitting}>Save Changes</button>
 <button type="button" class="btn hover:preset-tonal" onclick={cancelEdit}>Cancel</button>
