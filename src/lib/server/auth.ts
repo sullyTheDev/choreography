@@ -1,7 +1,7 @@
 import bcrypt from 'bcrypt';
-import { eq, lt } from 'drizzle-orm';
+import { eq, lt, and, sql } from 'drizzle-orm';
 import { db } from './db/index.js';
-import { sessions, members, familyMembers } from './db/schema.js';
+import { sessions, members, familyMembers, families } from './db/schema.js';
 import { now } from './db/utils.js';
 
 const PASSWORD_ROUNDS = 12;
@@ -92,9 +92,24 @@ export async function getMemberByEmail(email: string) {
 	return member ?? null;
 }
 
+/** @deprecated display names are only unique within a family — use getMemberByDisplayNameInFamily */
 export async function getMemberByDisplayName(displayName: string) {
 	const [member] = await db.select().from(members).where(eq(members.displayName, displayName)).limit(1);
 	return member ?? null;
+}
+
+export async function getMemberByDisplayNameInFamily(displayName: string, familyCode: string) {
+	const [row] = await db
+		.select({ member: members })
+		.from(familyMembers)
+		.innerJoin(members, eq(familyMembers.memberId, members.id))
+		.innerJoin(families, eq(familyMembers.familyId, families.id))
+		.where(and(
+			eq(members.displayName, displayName),
+			sql`substr(${families.id}, -8) = ${familyCode}`
+		))
+		.limit(1);
+	return row?.member ?? null;
 }
 
 export async function getMemberFamilyId(memberId: string) {

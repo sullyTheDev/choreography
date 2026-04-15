@@ -11,7 +11,7 @@ export const members = sqliteTable(
 	'members',
 	{
 		id: text('id').primaryKey(),
-		displayName: text('display_name').notNull().unique(),
+		displayName: text('display_name').notNull(),
 		avatarEmoji: text('avatar_emoji').notNull().default('👤'),
 		email: text('email').unique(),
 		passwordHash: text('password_hash'),

@@ -157,6 +157,10 @@ onDestroy(() => clearInterval(choreInterval));
 					</label>
 				{:else}
 					<label class="label">
+						<span class="flex items-center gap-1"><Icon icon="noto:house" class="h-3.5 w-3.5" /> Family code</span>
+						<input class="input uppercase" id="familyCode" name="familyCode" type="text" placeholder="ABC123" required autocomplete="off" maxlength="8" />
+					</label>
+					<label class="label">
 						<span class="flex items-center gap-1"><Icon icon="noto:bust-in-silhouette" class="h-3.5 w-3.5" /> Your name</span>
 						<input class="input" id="displayName" name="displayName" type="text" placeholder="Emma" required autocomplete="name" />
 					</label>

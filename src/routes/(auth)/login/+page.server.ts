@@ -7,7 +7,7 @@ import {
 	sessionCookieOptions,
 	deleteSession,
 	getMemberByEmail,
-	getMemberByDisplayName,
+	getMemberByDisplayNameInFamily,
 	getMemberFamilyId
 } from '$lib/server/auth.js';
 import { logger } from '$lib/server/logger.js';
@@ -41,20 +41,21 @@ export const actions: Actions = {
 			logger.info({ memberId: member.id }, 'admin login');
 			redirect(302, '/member/chores');
 		} else {
-			const displayName = String(data.get('displayName') ?? '').trim();
-			const pin = String(data.get('pin') ?? '').trim();
+const familyCode = String(data.get('familyCode') ?? '').trim().toUpperCase();
+		const displayName = String(data.get('displayName') ?? '').trim();
+		const pin = String(data.get('pin') ?? '').trim();
 
-			if (!displayName || !pin) return fail(400, { error: 'Name and PIN are required.' });
-			const member = await getMemberByDisplayName(displayName);
-			if (!member || !member.pin || !(await verifyPin(pin, member.pin))) {
-				return fail(401, { error: 'Invalid name or PIN.' });
+		if (!familyCode || !displayName || !pin) return fail(400, { error: 'Family code, name, and PIN are required.' });
+		const member = await getMemberByDisplayNameInFamily(displayName, familyCode);
+		if (!member || !member.pin || !(await verifyPin(pin, member.pin))) {
+			return fail(401, { error: 'Invalid family code, name, or PIN.' });
 			}
 			const familyId = await getMemberFamilyId(member.id);
 			if (!familyId) return fail(401, { error: 'Unable to resolve family membership.' });
 
 			const sessionToken = await createSession({ familyId, memberId: member.id, memberRole: 'member' });
 			cookies.set(SESSION_COOKIE_NAME, sessionToken, sessionCookieOptions());
-			
+
 			logger.info({ memberId: member.id }, 'member login');
 			redirect(302, 'member/chores');
 		}
