@@ -114,14 +114,14 @@ onDestroy(() => clearInterval(choreInterval));
 					class="btn flex-1 gap-1.5 text-sm {role === 'admin' ? 'preset-filled-primary-500 shadow' : 'hover:preset-tonal'}"
 					onclick={() => (role = 'admin')}
 				>
-					<Icon icon="noto:adult" class="h-4 w-4" /> Parent / Admin
+					<Icon icon="noto:envelope" class="h-4 w-4" /> Email Login
 				</button>
 				<button
 					type="button"
 					class="btn flex-1 gap-1.5 text-sm {role === 'member' ? 'preset-filled-primary-500 shadow' : 'hover:preset-tonal'}"
 					onclick={() => (role = 'member')}
 				>
-					<Icon icon="noto:child" class="h-4 w-4" /> Kid
+					<Icon icon="noto:input-numbers" class="h-4 w-4" /> Pin Login
 				</button>
 			</div>
 

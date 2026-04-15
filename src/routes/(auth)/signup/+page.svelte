@@ -100,7 +100,7 @@
 
         <div class="px-6 pb-6 space-y-4">
             <div class="text-center">
-                <h1 class="text-2xl font-extrabold">Start your family!</h1>
+                <h1 class="text-2xl font-extrabold">Set the stage for your family</h1>
                 <p class="text-sm text-surface-600-400 mt-0.5">
                     Create chores, earn coins, and redeem awesome rewards <Icon icon="noto:star-struck" class="inline h-4 w-4" />
                 </p>
