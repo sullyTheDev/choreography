@@ -39,11 +39,17 @@ let { appName, familyName, user, members, activeMemberId, coinBalance }: Props =
 					   </Menu.Trigger>
 					   <Portal>
 						   <Menu.Positioner class="z-50!">
-							   <Menu.Content class="min-w-[160px]">
+							   <Menu.Content class="min-w-40">
 								   {#if user.role === 'admin'}
 									   <Menu.Item value="manage">
 									   <a href="/admin" class="flex items-center gap-2 w-full px-2 py-2 no-underline text-inherit">
 											   <span>Manage</span>
+										   </a>
+									   </Menu.Item>
+									   <Menu.Item value="kiosk">
+										   <a href="/kiosk/chores" class="flex items-center gap-2 w-full px-2 py-2 no-underline text-inherit">
+											   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+											   <span>Kiosk Mode</span>
 										   </a>
 									   </Menu.Item>
 									   <Menu.Separator />

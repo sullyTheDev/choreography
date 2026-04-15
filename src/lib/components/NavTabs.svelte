@@ -5,16 +5,17 @@
 	interface Props {
 		role: 'admin' | 'member';
 		activeMemberId: string | null;
+		base?: string;
 	}
 
-	let { role, activeMemberId }: Props = $props();
+	let { role, activeMemberId, base = '/member' }: Props = $props();
 
 	const memberQs = $derived(activeMemberId ? `?member=${activeMemberId}` : '');
 
 	const tabs = $derived([
-		{ href: `/member/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
-		{ href: `/member/prizes${memberQs}`, label: 'Prize Shop', icon: 'noto:wrapped-gift' },
-		{ href: `/member/leaderboard`, label: 'Leaderboard', icon: 'noto:trophy' }
+		{ href: `${base}/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
+		{ href: `${base}/prizes${memberQs}`, label: 'Prize Shop', icon: 'noto:wrapped-gift' },
+		{ href: `${base}/leaderboard`, label: 'Leaderboard', icon: 'noto:trophy' }
 	]);
 
 	const currentPath = $derived(page.url.pathname);
