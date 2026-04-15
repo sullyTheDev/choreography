@@ -66,6 +66,6 @@ export const actions: Actions = {
 
 		logger.info({ familyId, memberId }, 'family registered');
 
-		redirect(302, '/admin/family');
+		redirect(302, '/admin/family?new=1');
 	}
 };

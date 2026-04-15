@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Icon from '@iconify/svelte';
+	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { AVATAR_EMOJI_OPTIONS } from '$lib/icons';
 	import CoinBadge from '$lib/components/CoinBadge.svelte';
 	import type { PageData } from './$types.js';
@@ -9,9 +10,18 @@
 	let editingId = $state<string | null>(null);
 	let showCreate = $state(false);
 	let createRole = $state<'admin' | 'member'>('member');
+	let showWelcomeDialog = $state(false);
+	$effect(() => { showWelcomeDialog = data.newFamily ?? false; });
+	let copied = $state(false);
 
 	function hasAvatarOption(value: string): boolean {
 		return AVATAR_EMOJI_OPTIONS.some((option) => option.value === value);
+	}
+
+	function copyCode() {
+		navigator.clipboard.writeText(data.family.familyCode);
+		copied = true;
+		setTimeout(() => (copied = false), 2000);
 	}
 </script>
 
@@ -149,3 +159,53 @@
 	{/if}
 </div>
 
+<!-- Welcome dialog: shown once after signup to reveal the family code -->
+<Dialog open={showWelcomeDialog} closeOnEscape={false} closeOnInteractOutside={false}>
+	<Portal>
+		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/70" />
+		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+			<Dialog.Content class="card preset-filled-surface-100-900 w-full max-w-sm p-6 space-y-4 shadow-xl">
+				<div class="flex flex-col items-center text-center gap-3">
+					<div class="flex items-end gap-1">
+						<Icon icon="noto:man-curly-hair" class="h-10 w-10" />
+						<Icon icon="noto:child" class="h-8 w-8" />
+						<Icon icon="noto:woman-blond-hair" class="h-10 w-10" />
+					</div>
+					<Dialog.Title class="text-xl font-bold">Let's get the crew set up!</Dialog.Title>
+					<Dialog.Description class="text-sm text-surface-600-400 space-y-2 text-left">
+						<p>Next, add your kids as members using the <strong>+ Add Member</strong> button below. Give each kid a display name and a 4–6 digit PIN.</p>
+						<p>When it's time to log in, they'll use your <strong>Family Code</strong> below, their <strong>display name</strong>, and their <strong>PIN</strong>.</p>
+					</Dialog.Description>
+				</div>
+
+				<div class="flex items-center justify-center gap-3 bg-surface-200-800 rounded-container px-4 py-3">
+					<span class="font-mono text-2xl font-bold tracking-widest">{data.family.familyCode}</span>
+					<button
+						type="button"
+						class="btn btn-sm preset-tonal-primary"
+						aria-label="Copy family code"
+						onclick={copyCode}
+					>
+						{#if copied}
+							<Icon icon="noto:check-mark-button" class="h-4 w-4" />
+						{:else}
+							<Icon icon="material-symbols:content-copy" class="h-4 w-4" />
+						{/if}
+					</button>
+				</div>
+
+				<p class="text-xs text-center text-surface-500-400">
+					You can always find this code on the <strong>Settings</strong> page.
+				</p>
+
+				<button
+					type="button"
+					class="btn preset-filled-primary-500 w-full"
+					onclick={() => (showWelcomeDialog = false)}
+				>
+					Got it!
+				</button>
+			</Dialog.Content>
+		</Dialog.Positioner>
+	</Portal>
+</Dialog>

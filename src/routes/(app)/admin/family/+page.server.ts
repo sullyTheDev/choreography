@@ -52,9 +52,11 @@ async function ensurePinUniqueInFamily(familyId: string, pin: string, excludeMem
 	return true;
 }
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	const { session } = locals;
 	if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
+
+	const newFamily = url.searchParams.has('new');
 
 	const rawMembers = await db
 		.select({
@@ -87,7 +89,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		})
 	);
 
-	return { members: rows };
+	return { members: rows, newFamily };
 };
 
 export const actions: Actions = {
