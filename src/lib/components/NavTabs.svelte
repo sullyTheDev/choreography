@@ -14,7 +14,7 @@
 
 	const tabs = $derived([
 		{ href: `${base}/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
-		{ href: `${base}/prizes${memberQs}`, label: 'Prize Shop', icon: 'noto:wrapped-gift' },
+		{ href: `${base}/prizes${memberQs}`, label: 'Prizes', icon: 'noto:wrapped-gift' },
 		{ href: `${base}/leaderboard${memberQs}`, label: 'Leaderboard', icon: 'noto:trophy' }
 	]);
 
