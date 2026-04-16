@@ -2,21 +2,16 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, choreCompletions, members, familyMembers, choreAssignments } from '$lib/server/db/schema.js';
+import { chores, choreCompletions, members, familyMembers, choreAssignments, activityEvents } from '$lib/server/db/schema.js';
 import { ulid, now, getPeriodKey } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
-export const load: PageServerLoad = async ({ locals, url, parent }) => {
+export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { session } = locals;
 	if (!session) error(401, 'Unauthorized');
-	const { activeMemberId, members: layoutMembers } = await parent();
-	const memberParam = url.searchParams.get('member');
-	const resolvedMemberId =
-		session.memberRole === 'member'
-			? session.memberId
-			: memberParam && layoutMembers.some((m) => m.id === memberParam)
-				? memberParam
-				: (activeMemberId ?? null);
+	const { members: layoutMembers } = await parent();
+	// Member routes always use session.memberId
+	const resolvedMemberId = session.memberId;
 
 	if (!resolvedMemberId) {
 		return { greeting: 'Hey there! 👋', remainingCount: 0, chores: [], activeMemberId: null };
@@ -148,15 +143,36 @@ export const actions: Actions = {
 		}
 
 		const id = ulid();
+		const occurredAt = now();
 		try {
-			await db.insert(choreCompletions).values({
-				id,
-				choreId,
-				memberId: effectiveMemberId,
-				familyId: session.familyId,
-				coinsAwarded: chore.coinValue,
-				periodKey,
-				completedAt: now()
+			await db.transaction(async (tx) => {
+				await tx.insert(choreCompletions).values({
+					id,
+					choreId,
+					memberId: effectiveMemberId,
+					familyId: session.familyId,
+					coinsAwarded: chore.coinValue,
+					periodKey,
+					completedAt: occurredAt
+				});
+
+				await tx.insert(activityEvents).values({
+					id: ulid(),
+					familyId: session.familyId,
+					actorMemberId: session.memberRole === 'member' ? session.memberId : effectiveMemberId,
+					subjectMemberId: effectiveMemberId,
+					eventType: 'chore_completed',
+					entityType: 'chore',
+					entityId: choreId,
+					deltaCoins: chore.coinValue,
+					metadata: JSON.stringify({
+						choreTitle: chore.title,
+						completionId: id,
+						source: 'member_chores_complete'
+					}),
+					occurredAt,
+					createdAt: occurredAt
+				});
 			});
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);

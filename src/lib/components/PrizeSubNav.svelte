@@ -1,22 +1,20 @@
 <script lang="ts">
-    import Icon from '@iconify/svelte';
+	import Icon from '@iconify/svelte';
 	import { page } from '$app/state';
 
 	interface Props {
-		role: 'admin' | 'member';
+		base: string;
 		activeMemberId: string | null;
-		base?: string;
 	}
 
-	let { role, activeMemberId, base = '/member' }: Props = $props();
+	let { base, activeMemberId }: Props = $props();
 
 	// Only add member query param for kiosk routes; member routes use session.memberId
-	const memberQs = $derived(base === '/kiosk' && activeMemberId ? `?member=${activeMemberId}` : '');
+	const memberQs = $derived(base.startsWith('/kiosk') && activeMemberId ? `?member=${activeMemberId}` : '');
 
 	const tabs = $derived([
-		{ href: `${base}/chores${memberQs}`, label: 'Chores', icon: 'noto:check-mark-button' },
-		{ href: `${base}/prizes${memberQs}`, label: 'Prizes', icon: 'noto:wrapped-gift' },
-		{ href: `${base}/leaderboard${memberQs}`, label: 'Leaderboard', icon: 'noto:trophy' }
+		{ href: `${base}/shop${memberQs}`, label: 'Shop', icon: 'noto:shopping-cart' },
+		{ href: `${base}/my-prizes${memberQs}`, label: 'My Prizes', icon: 'noto:backpack' }
 	]);
 
 	const currentPath = $derived(page.url.pathname);
@@ -27,8 +25,8 @@
 	}
 </script>
 
-<nav class="bg-surface-50-950 mt-8" aria-label="Main navigation">
-	<div class=" max-w-fit rounded-full flex items-center justify-center gap-1 mx-auto p-1.5 bg-surface-100-900">
+<nav class="bg-surface-50-950" aria-label="Prize navigation">
+	<div class="w-fit rounded-full flex items-center justify-center gap-1 p-1.5 bg-surface-100-900">
 		{#each tabs as tab}
 			<a
 				href={tab.href}
@@ -42,7 +40,5 @@
 				{tab.label}
 			</a>
 		{/each}
-
-
 	</div>
 </nav>

@@ -125,6 +125,6 @@ export const actions: Actions = {
 
 		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 
-		return { deleted: true };
+		redirect(302, '/signup');
 	}
 };

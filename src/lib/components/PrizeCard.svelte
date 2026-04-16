@@ -34,50 +34,54 @@ function fireConfetti() {
 }
 </script>
 
-<div class="card border preset-outlined-primary-200-800 shadow-md p-4 flex items-start gap-4">
-<div class="shrink-0 flex flex-col items-center gap-1">
-	<span class="text-4xl" aria-hidden="true"><Icon icon={resolveIconifyName(emoji, 'noto:wrapped-gift')} class="h-12 w-12" /></span>
-	<CoinBadge value={coinCost} />
-</div>
-<div class="flex-1 flex items-start justify-between gap-3 min-w-0">
-	<div class="flex flex-col gap-1 min-w-0">
-		<strong class="text-xl font-semibold">{title}</strong>
-		{#if description}
-		<p class="text-sm font-semibold text-surface-700-300 m-0">{description}</p>
-		{/if}
+<div class="card border preset-outlined-primary-200-800 shadow-md p-4 h-full flex flex-col gap-4">
+	<!-- Header row: emoji + coin badge + title/description -->
+	<div class="flex items-start gap-4">
+		<div class="shrink-0 flex flex-col items-center gap-1">
+			<span aria-hidden="true"><Icon icon={resolveIconifyName(emoji, 'noto:wrapped-gift')} class="h-12 w-12" /></span>
+			<CoinBadge value={coinCost} />
+		</div>
+		<div class="flex flex-col gap-1 min-w-0">
+			<strong class="text-xl font-semibold">{title}</strong>
+			{#if description}
+				<p class="text-sm font-semibold text-surface-700-300 m-0">{description}</p>
+			{/if}
+		</div>
 	</div>
-<form
-method="POST"
-action="?/redeem"
-use:enhance={() => {
-	submitting = true;
-	return async ({ update, result }) => {
-		await update();
-		submitting = false;
-		if (result.type === 'success' || result.type === 'redirect') {
-			fireConfetti();
-		}
-	};
-}}
->
-<input type="hidden" name="prizeId" value={id} />
-{#if activeMemberId}
-<input type="hidden" name="memberId" value={activeMemberId} />
-{/if}
-<button
-	type="submit"
-	class="btn shrink-0 {canAfford ? 'preset-filled-success-500' : 'preset-tonal-error'} chore-wiggle-btn"
-	disabled={!canAfford || submitting}
-	aria-label="Redeem {title} for {coinCost} coins"
->
-	{#if canAfford}
-		<Icon icon="noto:coin" class="h-4 w-4" /> Spend coins!
-	{:else}
-		<Icon icon="material-symbols:lock" class="h-4 w-4" /> Need {shortfall} more coins
-	{/if}
-</button>
-</form>
-</div>
+
+	<!-- Bottom action -->
+	<form
+		class="mt-auto"
+		method="POST"
+		action="?/redeem"
+		use:enhance={() => {
+			submitting = true;
+			return async ({ update, result }) => {
+				await update();
+				submitting = false;
+				if (result.type === 'success' || result.type === 'redirect') {
+					fireConfetti();
+				}
+			};
+		}}
+	>
+		<input type="hidden" name="prizeId" value={id} />
+		{#if activeMemberId}
+			<input type="hidden" name="memberId" value={activeMemberId} />
+		{/if}
+		<button
+			type="submit"
+			class="btn w-full {canAfford ? 'preset-filled-success-500' : 'preset-tonal-error'} chore-wiggle-btn"
+			disabled={!canAfford || submitting}
+			aria-label="Purchase {title} for {coinCost} coins"
+		>
+			{#if canAfford}
+				<Icon icon="noto:coin" class="h-4 w-4" /> Purchase
+			{:else}
+				<Icon icon="material-symbols:lock" class="h-4 w-4" /> Need {shortfall} more coins
+			{/if}
+		</button>
+	</form>
 </div>
 
 <style>

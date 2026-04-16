@@ -145,11 +145,36 @@ export const prizeRedemptions = sqliteTable(
 			.notNull()
 			.references(() => families.id),
 		coinCost: integer('coin_cost').notNull(),
+		status: text('status').notNull().default('available'),
 		redeemedAt: text('redeemed_at').notNull()
 	},
 	(table) => [
 		index('idx_redemption_member').on(table.memberId, table.redeemedAt),
 		index('idx_redemption_family').on(table.familyId, table.redeemedAt)
+	]
+);
+
+export const activityEvents = sqliteTable(
+	'activity_events',
+	{
+		id: text('id').primaryKey(),
+		familyId: text('family_id')
+			.notNull()
+			.references(() => families.id),
+		actorMemberId: text('actor_member_id').references(() => members.id),
+		subjectMemberId: text('subject_member_id').references(() => members.id),
+		eventType: text('event_type').notNull(),
+		entityType: text('entity_type'),
+		entityId: text('entity_id'),
+		deltaCoins: integer('delta_coins').notNull().default(0),
+		metadata: text('metadata').notNull().default('{}'),
+		occurredAt: text('occurred_at').notNull(),
+		createdAt: text('created_at').notNull()
+	},
+	(table) => [
+		index('idx_activity_family_time').on(table.familyId, table.occurredAt),
+		index('idx_activity_subject_time').on(table.subjectMemberId, table.occurredAt),
+		index('idx_activity_type_time').on(table.eventType, table.occurredAt)
 	]
 );
 

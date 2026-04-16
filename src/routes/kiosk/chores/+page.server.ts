@@ -2,7 +2,7 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, choreCompletions, members, familyMembers, choreAssignments } from '$lib/server/db/schema.js';
+import { chores, choreCompletions, members, familyMembers, choreAssignments, activityEvents } from '$lib/server/db/schema.js';
 import { ulid, now, getPeriodKey } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -120,15 +120,36 @@ export const actions: Actions = {
 		if (existing) return fail(409, { error: 'Already completed this chore for the current period' });
 
 		const id = ulid();
+		const occurredAt = now();
 		try {
-			await db.insert(choreCompletions).values({
-				id,
-				choreId,
-				memberId,
-				familyId: session.familyId,
-				coinsAwarded: chore.coinValue,
-				periodKey,
-				completedAt: now()
+			await db.transaction(async (tx) => {
+				await tx.insert(choreCompletions).values({
+					id,
+					choreId,
+					memberId,
+					familyId: session.familyId,
+					coinsAwarded: chore.coinValue,
+					periodKey,
+					completedAt: occurredAt
+				});
+
+				await tx.insert(activityEvents).values({
+					id: ulid(),
+					familyId: session.familyId,
+					actorMemberId: memberId,
+					subjectMemberId: memberId,
+					eventType: 'chore_completed',
+					entityType: 'chore',
+					entityId: choreId,
+					deltaCoins: chore.coinValue,
+					metadata: JSON.stringify({
+						choreTitle: chore.title,
+						completionId: id,
+						source: 'kiosk_chores_complete'
+					}),
+					occurredAt,
+					createdAt: occurredAt
+				});
 			});
 		} catch (err) {
 			const message = err instanceof Error ? err.message : String(err);

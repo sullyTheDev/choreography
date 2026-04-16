@@ -10,9 +10,17 @@
 	let { members, activeMemberId }: Props = $props();
 
 	function memberUrl(memberId: string): string {
-		const params = new URLSearchParams(page.url.searchParams);
-		params.set('member', memberId);
-		return `${page.url.pathname}?${params.toString()}`;
+		const isKiosk = page.url.pathname.startsWith('/kiosk');
+		
+		if (isKiosk) {
+			// Kiosk routes use member query param
+			const params = new URLSearchParams(page.url.searchParams);
+			params.set('member', memberId);
+			return `${page.url.pathname}?${params.toString()}`;
+		} else {
+			// Member routes don't use query param (always session.memberId)
+			return page.url.pathname;
+		}
 	}
 </script>
 

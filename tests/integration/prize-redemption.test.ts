@@ -18,7 +18,7 @@ import { hashPassword } from '../../src/lib/server/auth.js';
 import { eq, sum } from 'drizzle-orm';
 
 const getActions = async () =>
-	(await import('../../src/routes/(app)/member/prizes/+page.server.js')).actions;
+	(await import('../../src/routes/(app)/member/prizes/shop/+page.server.js')).actions;
 
 function makeFormData(data: Record<string, string>): FormData {
 	const fd = new FormData();

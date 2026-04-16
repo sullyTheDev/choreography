@@ -41,14 +41,12 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 		})
 	);
 
-	const memberParam = url.searchParams.get('member');
 	const validIds = new Set(membersWithBalances.map((m) => m.id));
 	let activeMemberId: string | null = null;
 
-	if (session.memberRole === 'member' && validIds.has(session.memberId)) {
+	// Member routes always use session.memberId; memberParam is reserved for kiosk
+	if (validIds.has(session.memberId)) {
 		activeMemberId = session.memberId;
-	} else if (memberParam && validIds.has(memberParam)) {
-		activeMemberId = memberParam;
 	} else if (membersWithBalances.length > 0) {
 		activeMemberId = membersWithBalances[0].id;
 	}
