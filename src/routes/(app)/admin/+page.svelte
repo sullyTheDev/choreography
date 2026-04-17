@@ -1,5 +1,8 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
+	import type { PageData } from './$types.js';
+
+	let { data }: { data: PageData } = $props();
 </script>
 
 <section class="space-y-4">
@@ -44,6 +47,27 @@
 			<div>
 				<strong class="text-lg font-semibold block">Family</strong>
 				<span class="text-sm text-surface-600-400">Manage members and roles</span>
+			</div>
+		</a>
+
+		<a
+			href="/admin/approvals"
+			class="card border preset-outlined-primary-200-800 shadow-md p-6 flex items-center gap-4 hover:preset-tonal-primary transition-colors no-underline"
+		>
+			<Icon icon="material-symbols:inbox" class="h-10 w-10 text-primary-500 shrink-0" />
+			<div class="flex-1">
+				<div class="flex items-center gap-2">
+					<strong class="text-lg font-semibold">Approvals</strong>
+					{#if data.pendingApprovalsCount > 0}
+						<span
+							class="badge preset-filled-warning-500 text-xs font-bold min-w-[1.5rem] text-center"
+							aria-label="{data.pendingApprovalsCount} pending approval{data.pendingApprovalsCount === 1 ? '' : 's'}"
+						>
+							{data.pendingApprovalsCount}
+						</span>
+					{/if}
+				</div>
+				<span class="text-sm text-surface-600-400">Review pending prize requests</span>
 			</div>
 		</a>
 
