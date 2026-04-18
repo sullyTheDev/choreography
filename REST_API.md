@@ -232,7 +232,8 @@ GET /api/v1/members
       "user": {
         "id": "user-id",
         "email": "alice@example.com",
-        "displayName": "Alice"
+        "displayName": "Alice",
+        "isActive": true
       }
     }
   ]
@@ -244,7 +245,17 @@ GET /api/v1/members
 GET /api/v1/members?id=<memberId>
 ```
 
-**Note:** Members endpoint is read-only for now.
+#### Reactivate Member
+```
+POST /api/v1/members/reactivate
+Content-Type: application/json
+
+{
+  "memberId": "user-id"
+}
+```
+
+Reactivates an inactive member account (`isActive: true`) in your family so they can sign in again.
 
 ### Prize Redemptions
 
