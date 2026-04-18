@@ -2,7 +2,7 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, members, familyMembers, choreAssignments } from '$lib/server/db/schema.js';
+import { chores, authUser, familyMembers, choreAssignments } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -16,10 +16,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 			.from(chores)
 			.where(and(eq(chores.familyId, session.familyId), eq(chores.isActive, true))),
 		db
-			.select({ id: members.id, displayName: members.displayName, avatarEmoji: members.avatarEmoji })
+			.select({ id: authUser.id, displayName: authUser.name, avatarEmoji: authUser.avatarEmoji })
 			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
-			.where(and(eq(familyMembers.familyId, session.familyId), eq(members.isActive, true)))
+			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+			.where(and(eq(familyMembers.familyId, session.familyId), eq(authUser.isActive, true)))
 	]);
 
 	const choreIds = allChores.map((c) => c.id);

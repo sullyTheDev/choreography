@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import {
 	families,
-	members,
+	authUser,
 	familyMembers,
 	chores,
 	choreCompletions,
@@ -29,16 +29,16 @@ export const GET: RequestHandler = async ({ locals }) => {
 		db.select().from(families).where(eq(families.id, familyId)),
 		db
 			.select({
-				id: members.id,
-				displayName: members.displayName,
-				avatarEmoji: members.avatarEmoji,
-				email: members.email,
-				isActive: members.isActive,
-				createdAt: members.createdAt,
-				role: familyMembers.role
-			})
-			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
+					id: authUser.id,
+					displayName: authUser.name,
+					avatarEmoji: authUser.avatarEmoji,
+					email: authUser.email,
+					isActive: authUser.isActive,
+					createdAt: authUser.createdAt,
+					role: familyMembers.role
+				})
+				.from(familyMembers)
+				.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
 			.where(eq(familyMembers.familyId, familyId)),
 		db.select().from(chores).where(eq(chores.familyId, familyId)),
 		db.select().from(prizes).where(eq(prizes.familyId, familyId)),

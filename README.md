@@ -19,7 +19,7 @@ A family chore management app that makes getting things done fun. Parents manage
 | Framework | SvelteKit 2 + Svelte 5 Runes |
 | Language | TypeScript 5 |
 | Database | SQLite via libsql + Drizzle ORM |
-| Auth | bcrypt passwords (parents) · bcrypt PINs (kids) · cookie sessions |
+| Auth | better-auth (local email/password · generic OIDC) · bcrypt PINs (kids) |
 | Logging | pino + pino-pretty |
 | Runtime | Node.js 20 |
 | Container | Docker + Docker Compose |
@@ -60,8 +60,21 @@ Open [http://localhost:5173](http://localhost:5173).
 |---|---|---|
 | `DATABASE_URL` | `file:./data/choreography.db` | Path to SQLite database file |
 | `SESSION_SECRET` | *(none)* | **Required.** Random secret for signing session cookies (32+ chars) |
+| `BETTER_AUTH_SECRET` | *(none)* | **Required.** Secret for better-auth session signing (32+ chars) |
+| `AUTH_MODE` | `local` | Authentication mode: `local`, `oidc`, or `both` |
 | `PORT` | `3000` | Port the production server listens on |
 | `LOG_LEVEL` | `info` | Pino log level (`trace`, `debug`, `info`, `warn`, `error`) |
+
+#### OIDC / Generic SSO (required when `AUTH_MODE=oidc` or `AUTH_MODE=both`)
+
+| Variable | Default | Description |
+|---|---|---|
+| `OIDC_ISSUER` | *(none)* | OIDC provider base URL (discovery at `/.well-known/openid-configuration`) |
+| `OIDC_CLIENT_ID` | *(none)* | OAuth client ID |
+| `OIDC_CLIENT_SECRET` | *(none)* | OAuth client secret |
+| `OIDC_ACCOUNT_CLAIM` | `email` | Claim key used to match OIDC identity to a local account |
+| `OIDC_ISSUER_LABEL` | `Single Sign-On` | Display label on the OIDC sign-in button |
+| `OIDC_ZERO_MATCH_POLICY` | `deny` | When no local match: `deny` blocks sign-in; `provision` creates a new account |
 
 ## Docker
 

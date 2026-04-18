@@ -9,14 +9,15 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	members,
+	authUser,
+	authAccount,
 	familyMembers,
 	prizes,
 	prizeRedemptions,
 	activityEvents
 } from '../../src/lib/server/db/schema.js';
 import { ulid, now } from '../../src/lib/server/db/utils.js';
-import { hashPassword } from '../../src/lib/server/auth.js';
+import { hashPassword, hashPin } from '../../src/lib/server/auth.js';
 import { eq, and } from 'drizzle-orm';
 
 const getLoad = async () =>
@@ -78,15 +79,24 @@ async function seedFamily() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: parentId,
-		displayName: 'Test Parent',
+		name: 'Test Parent',
 		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
-		passwordHash: await hashPassword('password123'),
-		pin: null,
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `cred_${parentId}`,
+		accountId: `parent-${familyId}@example.com`,
+		providerId: 'credential',
+		userId: parentId,
+		password: await hashPassword('password123'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId: parentId,
@@ -99,15 +109,24 @@ async function seedFamily() {
 
 async function seedMember(familyId: string, displayName: string) {
 	const memberId = ulid();
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: memberId,
-		displayName,
+		name: displayName,
 		avatarEmoji: '👧',
 		email: null,
-		passwordHash: null,
-		pin: 'hashed',
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `pin_${memberId}`,
+		accountId: memberId,
+		providerId: 'pin-auth',
+		userId: memberId,
+		password: await hashPin('1234'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId,
@@ -214,9 +233,9 @@ describe('admin/approvals — load (US1)', () => {
 		const otherMemberId = ulid();
 		const otherPrizeId = ulid();
 		await testDb.insert(families).values({ id: otherFamilyId, name: 'Other Family', leaderboardResetDay: 1, createdAt: now() });
-		await testDb.insert(members).values({ id: otherParentId, displayName: 'Other Parent', avatarEmoji: '🧑', email: `other-${otherFamilyId}@example.com`, passwordHash: null, pin: null, isActive: true, createdAt: now() });
+		await testDb.insert(authUser).values({ id: otherParentId, name: 'Other Parent', avatarEmoji: '🧑', email: `other-${otherFamilyId}@example.com`, emailVerified: false, isActive: true, createdAt: new Date(), updatedAt: new Date() });
 		await testDb.insert(familyMembers).values({ memberId: otherParentId, familyId: otherFamilyId, role: 'admin', joinedAt: now() });
-		await testDb.insert(members).values({ id: otherMemberId, displayName: 'Other Kid', avatarEmoji: '👦', email: null, passwordHash: null, pin: null, isActive: true, createdAt: now() });
+		await testDb.insert(authUser).values({ id: otherMemberId, name: 'Other Kid', avatarEmoji: '👦', email: null, emailVerified: false, isActive: true, createdAt: new Date(), updatedAt: new Date() });
 		await testDb.insert(familyMembers).values({ memberId: otherMemberId, familyId: otherFamilyId, role: 'member', joinedAt: now() });
 		await testDb.insert(prizes).values({ id: otherPrizeId, familyId: otherFamilyId, title: 'Other Prize', description: '', emoji: '🎁', coinCost: 30, isActive: true, createdAt: now() });
 
@@ -416,7 +435,7 @@ describe('admin/approvals — fulfill action (US2)', () => {
 		const otherPrizeId = ulid();
 		const otherMemberId = ulid();
 		await testDb.insert(families).values({ id: otherFamilyId, name: 'Other Family', leaderboardResetDay: 1, createdAt: now() });
-		await testDb.insert(members).values({ id: otherMemberId, displayName: 'Other Kid', avatarEmoji: '👦', email: null, passwordHash: null, pin: null, isActive: true, createdAt: now() });
+		await testDb.insert(authUser).values({ id: otherMemberId, name: 'Other Kid', avatarEmoji: '👦', email: null, emailVerified: false, isActive: true, createdAt: new Date(), updatedAt: new Date() });
 		await testDb.insert(familyMembers).values({ memberId: otherMemberId, familyId: otherFamilyId, role: 'member', joinedAt: now() });
 		await testDb.insert(prizes).values({ id: otherPrizeId, familyId: otherFamilyId, title: 'Other Prize', description: '', emoji: '🎁', coinCost: 30, isActive: true, createdAt: now() });
 		const otherRedemptionId = await seedRedemption(otherFamilyId, otherMemberId, otherPrizeId, 'pending');
@@ -496,7 +515,7 @@ describe('admin/approvals — dismiss action (US3)', () => {
 		const otherMemberId = ulid();
 		const otherPrizeId = ulid();
 		await testDb.insert(families).values({ id: otherFamilyId, name: 'Other Family', leaderboardResetDay: 1, createdAt: now() });
-		await testDb.insert(members).values({ id: otherMemberId, displayName: 'Other Kid', avatarEmoji: '👦', email: null, passwordHash: null, pin: null, isActive: true, createdAt: now() });
+		await testDb.insert(authUser).values({ id: otherMemberId, name: 'Other Kid', avatarEmoji: '👦', email: null, emailVerified: false, isActive: true, createdAt: new Date(), updatedAt: new Date() });
 		await testDb.insert(familyMembers).values({ memberId: otherMemberId, familyId: otherFamilyId, role: 'member', joinedAt: now() });
 		await testDb.insert(prizes).values({ id: otherPrizeId, familyId: otherFamilyId, title: 'Other Prize', description: '', emoji: '🎁', coinCost: 30, isActive: true, createdAt: now() });
 		const otherRedemptionId = await seedRedemption(otherFamilyId, otherMemberId, otherPrizeId, 'pending');

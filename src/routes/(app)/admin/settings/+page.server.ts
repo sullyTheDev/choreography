@@ -4,15 +4,14 @@ import { eq, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
 import {
 	families,
-	members,
+	authUser,
 	familyMembers,
 	chores,
 	choreAssignments,
 	choreCompletions,
 	prizes,
 	prizeAssignments,
-	prizeRedemptions,
-	sessions
+	prizeRedemptions
 } from '$lib/server/db/schema.js';
 
 import { SESSION_COOKIE_NAME } from '$lib/server/auth.js';
@@ -105,11 +104,10 @@ export const actions: Actions = {
 
 		await db.delete(prizes).where(eq(prizes.familyId, familyId));
 		await db.delete(chores).where(eq(chores.familyId, familyId));
-		await db.delete(sessions).where(eq(sessions.familyId, familyId));
 		await db.delete(familyMembers).where(eq(familyMembers.familyId, familyId));
 		await db.delete(families).where(eq(families.id, familyId));
 
-		// Delete any members that no longer belong to any family
+		// Delete any authUsers that no longer belong to any family
 		if (familyMemberIds.length) {
 			const stillMembered = await db
 				.select({ memberId: familyMembers.memberId })
@@ -118,8 +116,7 @@ export const actions: Actions = {
 			const stillMemberedIds = new Set(stillMembered.map(r => r.memberId));
 			const orphanIds = familyMemberIds.filter(id => !stillMemberedIds.has(id));
 			if (orphanIds.length) {
-				await db.delete(sessions).where(inArray(sessions.memberId, orphanIds));
-				await db.delete(members).where(inArray(members.id, orphanIds));
+				await db.delete(authUser).where(inArray(authUser.id, orphanIds));
 			}
 		}
 

@@ -2,8 +2,8 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { error, fail } from '@sveltejs/kit';
 import { and, eq, sum, ne } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { members, familyMembers, choreCompletions, prizeRedemptions } from '$lib/server/db/schema.js';
-import { hashPassword, hashPin, verifyPin } from '$lib/server/auth.js';
+import { authUser, authAccount, familyMembers, choreCompletions, prizeRedemptions } from '$lib/server/db/schema.js';
+import { hashPassword, hashPin } from '$lib/server/auth.js';
 import { now, ulid } from '$lib/server/db/utils.js';
 
 function validEmail(email: string): boolean {
@@ -12,43 +12,11 @@ function validEmail(email: string): boolean {
 
 async function activeAdminCount(familyId: string): Promise<number> {
 	const admins = await db
-		.select({ id: members.id })
+		.select({ id: authUser.id })
 		.from(familyMembers)
-		.innerJoin(members, eq(familyMembers.memberId, members.id))
-		.where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.role, 'admin'), eq(members.isActive, true)));
+		.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+		.where(and(eq(familyMembers.familyId, familyId), eq(familyMembers.role, 'admin'), eq(authUser.isActive, true)));
 	return admins.length;
-}
-
-async function ensurePinUniqueInFamily(familyId: string, pin: string, excludeMemberId?: string) {
-	let query = db
-		.select({ id: members.id, pin: members.pin })
-		.from(familyMembers)
-		.innerJoin(members, eq(familyMembers.memberId, members.id))
-		.where(and(eq(familyMembers.familyId, familyId), eq(members.isActive, true)));
-
-	if (excludeMemberId) {
-		query = db
-			.select({ id: members.id, pin: members.pin })
-			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
-			.where(
-				and(
-					eq(familyMembers.familyId, familyId),
-					eq(members.isActive, true),
-					ne(members.id, excludeMemberId)
-				)
-			);
-	}
-
-	const existing = await query;
-
-	for (const row of existing) {
-		if (row.pin && (await verifyPin(pin, row.pin))) {
-			return false;
-		}
-	}
-
-	return true;
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
@@ -59,16 +27,16 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const rawMembers = await db
 		.select({
-			id: members.id,
-			displayName: members.displayName,
-			avatarEmoji: members.avatarEmoji,
-			email: members.email,
-			isActive: members.isActive,
+			id: authUser.id,
+			displayName: authUser.name,
+			avatarEmoji: authUser.avatarEmoji,
+			email: authUser.email,
+			isActive: authUser.isActive,
 			role: familyMembers.role
 		})
 		.from(familyMembers)
-		.innerJoin(members, eq(familyMembers.memberId, members.id))
-		.where(and(eq(familyMembers.familyId, session.familyId), eq(members.isActive, true)));
+		.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+		.where(and(eq(familyMembers.familyId, session.familyId), eq(authUser.isActive, true)));
 
 	const rows = await Promise.all(
 		rawMembers.map(async (member) => {
@@ -107,7 +75,7 @@ export const actions: Actions = {
 		if (!displayName) return fail(400, { error: 'Display name is required.' });
 		if (role !== 'admin' && role !== 'member') return fail(400, { error: 'Role is required.' });
 
-		const [existingName] = await db.select({ id: members.id }).from(members).where(eq(members.displayName, displayName)).limit(1);
+		const [existingName] = await db.select({ id: authUser.id }).from(authUser).where(eq(authUser.name, displayName)).limit(1);
 		if (existingName) return fail(409, { error: 'Display name must be unique.' });
 
 		let passwordHash: string | null = null;
@@ -117,34 +85,32 @@ export const actions: Actions = {
 			if (!validEmail(email)) return fail(400, { error: 'Valid email is required for admins.' });
 			if (password.length < 8) return fail(400, { error: 'Password must be at least 8 characters.' });
 
-			const [existingEmail] = await db.select({ id: members.id }).from(members).where(eq(members.email, email)).limit(1);
+			const [existingEmail] = await db.select({ id: authUser.id }).from(authUser).where(eq(authUser.email, email)).limit(1);
 			if (existingEmail) return fail(409, { error: 'Email already exists.' });
 
 			passwordHash = await hashPassword(password);
 
 			if (pin) {
 				if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
-				const unique = await ensurePinUniqueInFamily(session.familyId, pin);
-				if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
 				pinHash = await hashPin(pin);
 			}
 		} else {
 			if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
-			const unique = await ensurePinUniqueInFamily(session.familyId, pin);
-			if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
 			pinHash = await hashPin(pin);
 		}
 
 		const memberId = ulid();
-		await db.insert(members).values({
+		const ts = new Date();
+
+		await db.insert(authUser).values({
 			id: memberId,
-			displayName,
-			avatarEmoji,
+			name: displayName,
 			email: role === 'admin' ? email : null,
-			passwordHash,
-			pin: pinHash,
+			emailVerified: false,
+			avatarEmoji,
 			isActive: true,
-			createdAt: now()
+			createdAt: ts,
+			updatedAt: ts
 		});
 
 		await db.insert(familyMembers).values({
@@ -153,6 +119,30 @@ export const actions: Actions = {
 			role,
 			joinedAt: now()
 		});
+
+		if (passwordHash) {
+			await db.insert(authAccount).values({
+				id: `cred_${memberId}`,
+				accountId: email,
+				providerId: 'credential',
+				userId: memberId,
+				password: passwordHash,
+				createdAt: ts,
+				updatedAt: ts
+			});
+		}
+
+		if (pinHash) {
+			await db.insert(authAccount).values({
+				id: `pin_${memberId}`,
+				accountId: memberId,
+				providerId: 'pin-auth',
+				userId: memberId,
+				password: pinHash,
+				createdAt: ts,
+				updatedAt: ts
+			});
+		}
 
 		return { success: true };
 	},
@@ -175,17 +165,17 @@ export const actions: Actions = {
 		if (role !== 'admin' && role !== 'member') return fail(400, { error: 'Role is required.' });
 
 		const [existing] = await db
-			.select({ id: members.id, isActive: members.isActive, currentRole: familyMembers.role })
+			.select({ id: authUser.id, isActive: authUser.isActive, currentRole: familyMembers.role })
 			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
-			.where(and(eq(familyMembers.familyId, session.familyId), eq(members.id, id)))
+			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+			.where(and(eq(familyMembers.familyId, session.familyId), eq(authUser.id, id)))
 			.limit(1);
 		if (!existing) return fail(404, { error: 'Member not found.' });
 
 		const [nameConflict] = await db
-			.select({ id: members.id })
-			.from(members)
-			.where(and(eq(members.displayName, displayName), ne(members.id, id)))
+			.select({ id: authUser.id })
+			.from(authUser)
+			.where(and(eq(authUser.name, displayName), ne(authUser.id, id)))
 			.limit(1);
 		if (nameConflict) return fail(409, { error: 'Display name must be unique.' });
 
@@ -194,49 +184,69 @@ export const actions: Actions = {
 			if (admins <= 1) return fail(400, { error: 'Cannot demote the last admin.' });
 		}
 
-		let passwordHashUpdate: string | null | undefined = undefined;
-		let pinHashUpdate: string | null | undefined = undefined;
+		const userUpdate: Record<string, unknown> = { name: displayName, avatarEmoji, updatedAt: new Date() };
 
 		if (role === 'admin') {
 			if (!validEmail(email)) return fail(400, { error: 'Valid email is required for admins.' });
 			const [emailConflict] = await db
-				.select({ id: members.id })
-				.from(members)
-				.where(and(eq(members.email, email), ne(members.id, id)))
+				.select({ id: authUser.id })
+				.from(authUser)
+				.where(and(eq(authUser.email, email), ne(authUser.id, id)))
 				.limit(1);
 			if (emailConflict) return fail(409, { error: 'Email already exists.' });
+			userUpdate.email = email;
 
 			if (password) {
 				if (password.length < 8) return fail(400, { error: 'Password must be at least 8 characters.' });
-				passwordHashUpdate = await hashPassword(password);
-			}
-
-			if (pin) {
-				if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
-				const unique = await ensurePinUniqueInFamily(session.familyId, pin, id);
-				if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
-				pinHashUpdate = await hashPin(pin);
+				const newHash = await hashPassword(password);
+				// Upsert credential account
+				const [credAccount] = await db
+					.select({ id: authAccount.id })
+					.from(authAccount)
+					.where(and(eq(authAccount.userId, id), eq(authAccount.providerId, 'credential')))
+					.limit(1);
+				if (credAccount) {
+					await db.update(authAccount).set({ password: newHash, updatedAt: new Date() }).where(eq(authAccount.id, credAccount.id));
+				} else {
+					await db.insert(authAccount).values({
+						id: `cred_${id}`,
+						accountId: email,
+						providerId: 'credential',
+						userId: id,
+						password: newHash,
+						createdAt: new Date(),
+						updatedAt: new Date()
+					});
+				}
 			}
 		} else {
-			if (pin) {
-				if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
-				const unique = await ensurePinUniqueInFamily(session.familyId, pin, id);
-				if (!unique) return fail(400, { error: 'PIN is already used by another member in this family.' });
-				pinHashUpdate = await hashPin(pin);
-			}
-			passwordHashUpdate = null;
+			userUpdate.email = null;
 		}
 
-		await db
-			.update(members)
-			.set({
-				displayName,
-				avatarEmoji,
-				email: role === 'admin' ? email : null,
-				passwordHash: passwordHashUpdate === undefined ? undefined : passwordHashUpdate,
-				pin: pinHashUpdate === undefined ? undefined : pinHashUpdate
-			})
-			.where(eq(members.id, id));
+		if (pin) {
+			if (!/^\d{4,6}$/.test(pin)) return fail(400, { error: 'PIN must be 4-6 digits.' });
+			const newHash = await hashPin(pin);
+			const [pinAccount] = await db
+				.select({ id: authAccount.id })
+				.from(authAccount)
+				.where(and(eq(authAccount.userId, id), eq(authAccount.providerId, 'pin-auth')))
+				.limit(1);
+			if (pinAccount) {
+				await db.update(authAccount).set({ password: newHash, updatedAt: new Date() }).where(eq(authAccount.id, pinAccount.id));
+			} else {
+				await db.insert(authAccount).values({
+					id: `pin_${id}`,
+					accountId: id,
+					providerId: 'pin-auth',
+					userId: id,
+					password: newHash,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				});
+			}
+		}
+
+		await db.update(authUser).set(userUpdate).where(eq(authUser.id, id));
 
 		await db
 			.update(familyMembers)
@@ -255,9 +265,9 @@ export const actions: Actions = {
 		if (!id) return fail(400, { error: 'Member id is required.' });
 
 		const [target] = await db
-			.select({ role: familyMembers.role, isActive: members.isActive })
+			.select({ role: familyMembers.role, isActive: authUser.isActive })
 			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
 			.where(and(eq(familyMembers.familyId, session.familyId), eq(familyMembers.memberId, id)))
 			.limit(1);
 		if (!target) return fail(404, { error: 'Member not found.' });
@@ -267,7 +277,7 @@ export const actions: Actions = {
 			if (admins <= 1) return fail(400, { error: 'Cannot deactivate the last admin.' });
 		}
 
-		await db.update(members).set({ isActive: false }).where(eq(members.id, id));
+		await db.update(authUser).set({ isActive: false, updatedAt: new Date() }).where(eq(authUser.id, id));
 		return { success: true };
 	}
 };

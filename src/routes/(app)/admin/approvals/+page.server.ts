@@ -5,7 +5,7 @@ import { db } from '$lib/server/db/index.js';
 import {
 	prizeRedemptions,
 	prizes,
-	members,
+	authUser,
 	familyMembers,
 	activityEvents
 } from '$lib/server/db/schema.js';
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	function sortExpr(col: SortCol) {
 		const d = dir === 'asc' ? asc : desc;
 		if (col === 'requestedAt') return d(prizeRedemptions.redeemedAt);
-		if (col === 'memberName') return d(members.displayName);
+		if (col === 'memberName') return d(authUser.name);
 		if (col === 'prizeName') return d(prizes.title);
 		if (col === 'coinCost') return d(prizeRedemptions.coinCost);
 		return d(prizeRedemptions.redeemedAt);
@@ -61,8 +61,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				prizeId: prizes.id,
 				prizeName: prizes.title,
 				prizeEmoji: prizes.emoji,
-				memberId: members.id,
-				memberName: members.displayName,
+				memberId: authUser.id,
+				memberName: authUser.name,
 				requestedAt: prizeRedemptions.redeemedAt,
 				coinCost: prizeRedemptions.coinCost
 			})
@@ -75,7 +75,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 					eq(familyMembers.familyId, familyId)
 				)
 			)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
+			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
 			.where(baseWhere)
 			.orderBy(sortExpr(sort))
 			.limit(PAGE_SIZE)
