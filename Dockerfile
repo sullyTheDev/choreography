@@ -7,6 +7,9 @@ RUN npm ci --legacy-peer-deps
 
 COPY . .
 
+# Drizzle runtime migrator requires this file; fail build early if it is missing.
+RUN test -f drizzle/meta/_journal.json
+
 # Build-time inputs used only for SSR compilation in the builder stage.
 # Keep runtime secrets in container runtime env, not build args.
 ARG BUILD_ORIGIN=http://localhost:3000

@@ -13,7 +13,8 @@ data/
 *.db-wal
 
 # Drizzle generated (migrations are committed; snapshots are not)
-drizzle/meta/
+drizzle/meta/*.json
+!drizzle/meta/_journal.json
 
 # Environment
 .env
