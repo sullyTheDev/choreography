@@ -1,7 +1,28 @@
 {
   "name": "choreography",
   "version": "0.0.1",
+  "description": "Family chore tracking and rewards app built with SvelteKit.",
+  "license": "MIT",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sullyTheDev/choreography.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sullyTheDev/choreography/issues"
+  },
+  "homepage": "https://github.com/sullyTheDev/choreography#readme",
+  "keywords": [
+    "sveltekit",
+    "family",
+    "chores",
+    "rewards",
+    "sqlite",
+    "drizzle"
+  ],
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite dev",
