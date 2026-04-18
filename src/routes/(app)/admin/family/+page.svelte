@@ -7,11 +7,13 @@
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
+	type FamilyMember = PageData['members'][number];
 	let editingId = $state<string | null>(null);
 	let editingRole = $state<'admin' | 'member'>('member');
 	let showCreate = $state(false);
 	let createRole = $state<'admin' | 'member'>('member');
 	let showWelcomeDialog = $state(false);
+	let memberPendingDeactivate = $state<FamilyMember | null>(null);
 	$effect(() => { showWelcomeDialog = data.newFamily ?? false; });
 	let copied = $state(false);
 	const toaster = createToaster();
@@ -24,6 +26,14 @@
 		navigator.clipboard.writeText(data.family.familyCode);
 		copied = true;
 		setTimeout(() => (copied = false), 2000);
+	}
+
+	function openDeactivateDialog(member: FamilyMember) {
+		memberPendingDeactivate = member;
+	}
+
+	function closeDeactivateDialog() {
+		memberPendingDeactivate = null;
 	}
 </script>
 
@@ -128,30 +138,41 @@
 							editingRole = member.role as 'admin' | 'member';
 						}
 					}}><Icon icon="material-symbols:edit" class="h-5 w-5" /></button>
-						<form method="POST" action={member.isActive ? '?/deactivate' : '?/reactivate'} use:enhance={() => {
+						{#if member.isActive}
+							<button
+								type="button"
+								class="btn preset-tonal-error"
+								aria-label="Deactivate {member.displayName}"
+								onclick={() => openDeactivateDialog(member)}
+							>
+								<Icon icon="material-symbols:person-off" class="h-5 w-5" />
+							</button>
+						{:else}
+						<form method="POST" action="?/reactivate" use:enhance={() => {
 							return async ({ result, update }) => {
 								await update();
 								if (result.type === 'failure' && result.data?.error) {
 									toaster.error({
-										title: member.isActive ? 'Cannot deactivate' : 'Cannot reactivate',
+										title: 'Cannot reactivate',
 										description: String(result.data.error)
 									});
 								} else if (result.type !== 'failure') {
 									toaster.success({
-										title: member.isActive ? 'Member deactivated' : 'Member reactivated',
-										description: `${member.displayName} was ${member.isActive ? 'deactivated' : 'reactivated'}.`
+										title: 'Member reactivated',
+										description: `${member.displayName} was reactivated.`
 									});
 								}
 							};
 						}}>
 							<input type="hidden" name="id" value={member.id} />
 							<button
-								class="btn {member.isActive ? 'preset-tonal-error' : 'preset-tonal-success'}"
-								aria-label="{member.isActive ? 'Deactivate' : 'Reactivate'} {member.displayName}"
+								class="btn preset-tonal-success"
+								aria-label="Reactivate {member.displayName}"
 							>
-								<Icon icon={member.isActive ? 'material-symbols:person-off' : 'material-symbols:person-check'} class="h-5 w-5" />
+								<Icon icon="material-symbols:person-check" class="h-5 w-5" />
 							</button>
-							</form>
+						</form>
+						{/if}
 						</div>
 					</div>
 					{#if editingId === member.id}
@@ -265,6 +286,62 @@
 				>
 					Got it!
 				</button>
+			</Dialog.Content>
+		</Dialog.Positioner>
+	</Portal>
+</Dialog>
+
+<Dialog
+	open={memberPendingDeactivate !== null}
+	closeOnEscape={true}
+	onOpenChange={(details) => {
+		if (!details.open) closeDeactivateDialog();
+	}}
+>
+	<Portal>
+		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/70" />
+		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+			<Dialog.Content class="card preset-filled-surface-100-900 w-full max-w-md p-6 space-y-4 shadow-xl">
+				{#if memberPendingDeactivate}
+					<Dialog.Title class="text-xl font-bold">Deactivate member?</Dialog.Title>
+					<Dialog.Description class="text-sm text-surface-600-400 space-y-2">
+						<p>
+							You are about to deactivate
+							<strong>{memberPendingDeactivate.displayName}</strong>
+							{#if memberPendingDeactivate.email}
+								(<span class="font-mono">{memberPendingDeactivate.email}</span>)
+							{/if}.
+						</p>
+						<p>This user will lose access until an admin reactivates their account.</p>
+					</Dialog.Description>
+					<form
+						method="POST"
+						action="?/deactivate"
+						class="flex justify-end gap-2"
+						use:enhance={() => {
+							const memberDisplayName = memberPendingDeactivate?.displayName ?? 'Member';
+							return async ({ result, update }) => {
+								await update();
+								if (result.type === 'failure' && result.data?.error) {
+									toaster.error({
+										title: 'Cannot deactivate',
+										description: String(result.data.error)
+									});
+								} else if (result.type !== 'failure') {
+									toaster.success({
+										title: 'Member deactivated',
+										description: `${memberDisplayName} was deactivated.`
+									});
+								}
+								closeDeactivateDialog();
+							};
+						}}
+					>
+						<input type="hidden" name="id" value={memberPendingDeactivate.id} />
+						<button type="button" class="btn" onclick={closeDeactivateDialog}>Cancel</button>
+						<button type="submit" class="btn preset-filled-error-500">Deactivate</button>
+					</form>
+				{/if}
 			</Dialog.Content>
 		</Dialog.Positioner>
 	</Portal>
