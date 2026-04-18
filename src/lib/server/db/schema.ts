@@ -88,6 +88,29 @@ export const familyMembers = sqliteTable(
 	]
 );
 
+export const familyApiKeys = sqliteTable(
+	'family_api_keys',
+	{
+		id: text('id').primaryKey(),
+		familyId: text('family_id')
+			.notNull()
+			.references(() => families.id, { onDelete: 'cascade' }),
+		keyHash: text('key_hash'),
+		keyPrefix: text('key_prefix'),
+		keyLast4: text('key_last4'),
+		createdByMemberId: text('created_by_member_id').references(() => authUser.id),
+		createdAt: text('created_at').notNull(),
+		rotatedAt: text('rotated_at'),
+		revokedAt: text('revoked_at'),
+		lastUsedAt: text('last_used_at')
+	},
+	(table) => [
+		uniqueIndex('uq_family_api_key_family').on(table.familyId),
+		uniqueIndex('uq_family_api_key_hash').on(table.keyHash),
+		index('idx_family_api_key_active').on(table.familyId, table.revokedAt)
+	]
+);
+
 export const chores = sqliteTable(
 	'chores',
 	{

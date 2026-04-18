@@ -4,6 +4,16 @@ declare global {
 	namespace App {
 		interface Locals {
 			/**
+			 * Active API key identity for REST API requests. Null when no valid API key exists.
+			 */
+			apiKey: {
+				id: string;
+				familyId: string;
+				keyPrefix: string;
+				keyLast4: string;
+			} | null;
+
+			/**
 			 * Active session resolved from better-auth. Null when no valid session exists.
 			 */
 			session: {

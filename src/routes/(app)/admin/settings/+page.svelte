@@ -12,8 +12,18 @@
                 familyCode: string;
                 leaderboardResetDay: number;
             };
+            apiKey: {
+                id: string;
+                keyPrefix: string;
+                keyLast4: string;
+                createdAt: string;
+                rotatedAt: string | null;
+                revokedAt: string | null;
+                lastUsedAt: string | null;
+                hasActiveKey: boolean;
+            } | null;
         };
-        form?: { success?: boolean; error?: string; deleted?: boolean } | null;
+        form?: { success?: boolean; error?: string; issuedApiKey?: string; issuedKeyPrefix?: string; issuedKeyLast4?: string } | null;
     }>();
 
     const DAY_NAMES = [
@@ -28,6 +38,9 @@
     let submitting = $state(false);
     let deleteConfirm = $state('');
     let showDeletedDialog = $state(false);
+    let keyGenerating = $state(false);
+    let showKeyDeleted = $state(false);
+    let copiedKey = $state(false);
     const toaster = createToaster();
 </script>
 
@@ -126,6 +139,122 @@
         </p>
     </div>
 
+    <!-- API Key Management -->
+    <div class="card border preset-outlined-primary-200-800 shadow-md p-4 space-y-4">
+        <div>
+            <h3 class="text-lg font-semibold">API Key</h3>
+            <p class="text-sm text-surface-600-400 mt-1">
+                Generate an API key to access family data via REST API endpoints. Use it with <code class="font-mono text-xs bg-surface-100-900 px-1 py-0.5 rounded">Authorization: Bearer &lt;key&gt;</code> header.
+            </p>
+        </div>
+
+        {#if form?.issuedApiKey}
+            <div class="bg-success-100-900 border border-success-400-600 rounded-lg p-4 space-y-3">
+                <p class="text-sm font-semibold text-success-700-300">✓ API Key Generated</p>
+                <p class="text-xs text-surface-600-400">Save this key now—it won't be shown again.</p>
+                <div class="flex gap-2 items-stretch">
+                    <input
+                        type="text"
+                        readonly
+                        value={form.issuedApiKey}
+                        class="input flex-1 font-mono text-xs"
+                    />
+                    <button
+                        type="button"
+                        class="btn preset-filled-primary-500"
+                        onclick={() => {
+                            navigator.clipboard.writeText(form?.issuedApiKey || '');
+                            copiedKey = true;
+                            setTimeout(() => { copiedKey = false; }, 2000);
+                            toaster.success({
+                                title: 'Copied!',
+                                description: 'API key copied to clipboard.',
+                                type: 'success'
+                            });
+                        }}
+                    >
+                        {copiedKey ? 'Copied' : 'Copy'}
+                    </button>
+                </div>
+            </div>
+        {/if}
+
+        {#if data.apiKey?.hasActiveKey}
+            <div class="bg-surface-100-900 border border-surface-300-700 rounded-lg p-3 space-y-2 text-xs">
+                <p class="font-semibold">Active Key</p>
+                <p class="text-surface-600-400 font-mono">{data.apiKey.keyPrefix}...{data.apiKey.keyLast4}</p>
+                <p class="text-surface-500-400">Created: {new Date(data.apiKey.createdAt).toLocaleDateString()}</p>
+                {#if data.apiKey.lastUsedAt}
+                    <p class="text-surface-500-400">Last used: {new Date(data.apiKey.lastUsedAt).toLocaleString()}</p>
+                {/if}
+            </div>
+
+            <div class="flex gap-2">
+                <form
+                    method="POST"
+                    action="?/generateApiKey"
+                    use:enhance={() => {
+                        keyGenerating = true;
+                        return async ({ result, update }) => {
+                            await update();
+                            keyGenerating = false;
+                        };
+                    }}
+                    class="flex-1"
+                >
+                    <button
+                        type="submit"
+                        class="btn preset-filled-primary-500 w-full"
+                        disabled={keyGenerating}
+                    >
+                        {keyGenerating ? 'Rotating…' : 'Rotate Key'}
+                    </button>
+                </form>
+
+                <form
+                    method="POST"
+                    action="?/deleteApiKey"
+                    use:enhance={() => {
+                        keyGenerating = true;
+                        return async ({ update }) => {
+                            await update();
+                            showKeyDeleted = true;
+                            keyGenerating = false;
+                        };
+                    }}
+                >
+                    <button
+                        type="submit"
+                        class="btn preset-outlined-error-500"
+                        disabled={keyGenerating}
+                    >
+                        Delete
+                    </button>
+                </form>
+            </div>
+        {:else}
+            <form
+                method="POST"
+                action="?/generateApiKey"
+                use:enhance={() => {
+                    keyGenerating = true;
+                    return async ({ result, update }) => {
+                        await update();
+                        keyGenerating = false;
+                    };
+                }}
+            >
+                <button
+                    type="submit"
+                    class="btn preset-filled-primary-500 w-full"
+                    disabled={keyGenerating}
+                >
+                    {keyGenerating ? 'Generating…' : 'Generate API Key'}
+                </button>
+            </form>
+        {/if}
+    </div>
+
     <!-- Export data -->
     <div class="card border preset-outlined-primary-200-800 shadow-md p-4 space-y-2">
         <h3 class="text-lg font-semibold">Export Data</h3>
@@ -183,6 +312,28 @@
         </form>
     </div>
 </section>
+
+<!-- Key deleted dialog -->
+<Dialog open={showKeyDeleted} closeOnEscape={true}>
+    <Portal>
+        <Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/70" />
+        <Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
+            <Dialog.Content class="card preset-filled-surface-100-900 w-full max-w-sm p-6 space-y-4 shadow-xl">
+                <Dialog.Title class="text-lg font-bold">API Key Deleted</Dialog.Title>
+                <Dialog.Description class="text-sm text-surface-600-400">
+                    Your API key has been revoked. Any applications using it will stop working immediately.
+                </Dialog.Description>
+                <button
+                    type="button"
+                    class="btn preset-filled-primary-500 w-full"
+                    onclick={() => { showKeyDeleted = false; }}
+                >
+                    Close
+                </button>
+            </Dialog.Content>
+        </Dialog.Positioner>
+    </Portal>
+</Dialog>
 
 <!-- Family deleted confirmation dialog -->
 <Dialog
