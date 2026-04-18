@@ -4,12 +4,30 @@ import { eq, and } from 'drizzle-orm';
 import { auth } from '$lib/auth.js';
 import { db } from '$lib/server/db/index.js';
 import { authUser, familyMembers } from '$lib/server/db/schema.js';
+import { authenticateApiKey, parseBearerToken } from '$lib/server/api-keys.js';
 import { logger } from '$lib/server/logger.js';
 
 const handle: Handle = async ({ event, resolve }) => {
 	const start = Date.now();
 
+	event.locals.apiKey = null;
 	event.locals.session = null;
+
+	const isRestApiV1 = event.url.pathname.startsWith('/api/v1/');
+
+	if (isRestApiV1) {
+		const token = parseBearerToken(event.request.headers.get('authorization'));
+		if (token) {
+			try {
+				const identity = await authenticateApiKey(token);
+				if (identity) {
+					event.locals.apiKey = identity;
+				}
+			} catch (err) {
+				logger.warn({ err, path: event.url.pathname }, 'api key validation failed');
+			}
+		}
+	}
 
 	// Resolve session via Better Auth (covers both email/OIDC and PIN logins)
 	try {

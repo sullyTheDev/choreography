@@ -1,14 +1,33 @@
 services:
   choreography:
-    build: .
+    build:
+      context: .
+      args:
+        # Optional builder inputs for SSR compilation.
+        # Keep real secrets in runtime env vars, not build args.
+        BUILD_ORIGIN: ${BUILD_ORIGIN:-http://localhost:3000}
+        BUILD_AUTH_MODE: ${BUILD_AUTH_MODE:-local}
+        BUILD_BETTER_AUTH_SECRET: ${BUILD_BETTER_AUTH_SECRET:-build-time-placeholder-secret-at-least-32-characters}
     ports:
       - "${PORT:-3000}:3000"
     volumes:
       - ./data:/app/data
     environment:
-      - DATABASE_URL=file:./data/choreography.db
-      - SESSION_SECRET=${SESSION_SECRET:-change-me-in-production-must-be-at-least-32-chars!!}
+      - DATABASE_URL=${DATABASE_URL:-file:./data/choreography.db}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-change-me-in-production-must-be-at-least-32-chars!!}
       - ORIGIN=${ORIGIN:-http://localhost:3000}
       - PORT=3000
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Authentication mode: local | oidc | both
+      - AUTH_MODE=${AUTH_MODE:-local}
+      # OIDC vars — only needed when AUTH_MODE=oidc or AUTH_MODE=both
+      - OIDC_ISSUER=${OIDC_ISSUER:-}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID:-}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET:-}
+      - OIDC_ACCOUNT_CLAIM=${OIDC_ACCOUNT_CLAIM:-email}
+      - OIDC_ISSUER_LABEL=${OIDC_ISSUER_LABEL:-Single Sign-On}
+      - OIDC_ZERO_MATCH_POLICY=${OIDC_ZERO_MATCH_POLICY:-deny}
+      # File ownership for Unraid and other hosts (set to your host UID/GID)
+      - PUID=${PUID:-1000}
+      - PGID=${PGID:-1000}
     restart: unless-stopped

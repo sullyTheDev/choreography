@@ -1,6 +1,6 @@
 /**
  * Standalone migration script — run before starting the app server.
- * Usage: node --import tsx/esm src/migrate.ts
+ * Usage: node src/migrate.mjs
  *   or via: npm run db:migrate:prod
  */
 import { createClient } from '@libsql/client';

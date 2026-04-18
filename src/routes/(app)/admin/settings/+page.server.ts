@@ -15,6 +15,11 @@ import {
 } from '$lib/server/db/schema.js';
 
 import { SESSION_COOKIE_NAME } from '$lib/server/auth.js';
+import {
+	getFamilyApiKeyMetadata,
+	issueFamilyApiKey,
+	revokeFamilyApiKey
+} from '$lib/server/api-keys.js';
 import { familyCode } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -24,6 +29,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const [family] = await db.select().from(families).where(eq(families.id, session.familyId)).limit(1);
 	if (!family) error(404, 'Family not found');
+	const apiKey = await getFamilyApiKeyMetadata(session.familyId);
 
 	return {
 		family: {
@@ -31,7 +37,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			name: family.name,
 			familyCode: familyCode(family.id),
 			leaderboardResetDay: family.leaderboardResetDay
-		}
+		},
+		apiKey
 	};
 };
 
@@ -71,6 +78,35 @@ export const actions: Actions = {
 		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
 
 		redirect(302, '/api/export');
+	},
+
+	generateApiKey: async ({ locals }) => {
+		const { session } = locals;
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
+
+		const issued = await issueFamilyApiKey({
+			familyId: session.familyId,
+			actorMemberId: session.memberId
+		});
+
+		logger.info({ familyId: session.familyId, actorMemberId: session.memberId }, 'Family API key generated/rotated');
+
+		return {
+			success: true,
+			issuedApiKey: issued.rawKey,
+			issuedKeyPrefix: issued.keyPrefix,
+			issuedKeyLast4: issued.keyLast4
+		};
+	},
+
+	deleteApiKey: async ({ locals }) => {
+		const { session } = locals;
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
+
+		await revokeFamilyApiKey(session.familyId);
+		logger.info({ familyId: session.familyId, actorMemberId: session.memberId }, 'Family API key revoked');
+
+		return { success: true };
 	},
 
 	deleteFamily: async ({ request, locals, cookies }) => {
