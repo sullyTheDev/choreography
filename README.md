@@ -96,6 +96,27 @@ The app is available at [http://localhost:3000](http://localhost:3000). The SQLi
 docker build -t choreography .
 ```
 
+### Unraid Quick Config
+
+If you run this container through Unraid Community Applications, set these first:
+
+- Required:
+  - `BETTER_AUTH_SECRET` (32+ characters)
+  - `ORIGIN` (for example `http://tower.local:3000` or your reverse-proxy URL)
+- Usually keep defaults:
+  - `DATABASE_URL=file:./data/choreography.db`
+  - `AUTH_MODE=local`
+  - `LOG_LEVEL=info`
+  - `PUID=99`, `PGID=100` (typical Unraid defaults)
+- Only for SSO/OIDC:
+  - `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`
+  - optional: `OIDC_ACCOUNT_CLAIM`, `OIDC_ISSUER_LABEL`, `OIDC_ZERO_MATCH_POLICY`
+
+The included Unraid template file (`unraid/choreography.xml`) maps:
+- host path to `/app/data`
+- host port to container `3000`
+- all supported runtime environment variables
+
 ## Database
 
 Migrations are SQL files managed by [Drizzle Kit](https://orm.drizzle.team/kit-docs/overview) and stored in the `drizzle/` folder. They are applied in order to bring the SQLite schema up to date.
@@ -108,9 +129,9 @@ Run migrations manually with `npm run db:migrate` before starting the dev server
 **Docker / production**
 Migrations run automatically at container startup — before the HTTP server begins accepting requests. The `CMD` in the Dockerfile is:
 ```
-node --import tsx/esm src/migrate.ts && node build/index.js
+node build/migrate.mjs && node build/index.js
 ```
-`src/migrate.ts` connects to the database, applies any pending migrations from `drizzle/`, then exits. Only if that succeeds does `node build/index.js` start. This means:
+`src/migrate.mjs` connects to the database, applies any pending migrations from `drizzle/`, then exits. Only if that succeeds does `node build/index.js` start. This means:
 - A failed migration stops the container immediately (visible in `docker compose logs`) rather than silently serving 500 errors.
 - There is no race condition — the server never starts with an unmigrated schema.
 - The `drizzle/` folder is baked into the production image during the Docker build so the migration files are always available.
@@ -124,7 +145,7 @@ npm run db:generate
 # Apply pending migrations (local dev)
 npm run db:migrate
 
-# Apply pending migrations (production-like, uses tsx directly)
+# Apply pending migrations (production-like)
 npm run db:migrate:prod
 
 # Seed the database with demo data (dev only)
@@ -188,3 +209,58 @@ tests/
 5. **Kids log in** — kids go to `/login`, switch to "I'm a Kid", enter the family code (shown in Settings) and their PIN.
 6. **Earn & spend** — kids complete chores to earn coins and redeem prizes to spend them.
 7. **Compete** — the Leaderboard tab shows weekly rankings across the family.
+
+## REST API
+
+The app exposes a **family-scoped REST API** for programmatic access to chores, prizes, redemptions, and activity data.
+
+### Getting Started
+
+1. **Generate an API key** — go to Admin → Settings and click "Generate API Key"
+2. **Save the key** — it's shown only once; store it securely
+3. **Use Bearer auth** — include `Authorization: Bearer <your-key>` header in requests
+
+### Interactive Documentation
+
+Visit [/api/docs](http://localhost:5173/api/docs) to explore the API with Swagger UI. You can test endpoints directly in the browser by pasting your API key.
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/chores` | List all chores |
+| POST | `/api/v1/chores` | Create a new chore |
+| PUT | `/api/v1/chores?id=...` | Update a chore |
+| DELETE | `/api/v1/chores?id=...` | Delete a chore |
+| GET | `/api/v1/prizes` | List all prizes |
+| POST | `/api/v1/prizes` | Create a new prize |
+| PUT | `/api/v1/prizes?id=...` | Update a prize |
+| DELETE | `/api/v1/prizes?id=...` | Delete a prize |
+| GET | `/api/v1/members` | List family members (read-only) |
+| GET | `/api/v1/redemptions` | List redemptions (filterable by status) |
+| POST | `/api/v1/redemptions` | Create a redemption |
+| PUT | `/api/v1/redemptions?id=...` | Update redemption status |
+| GET | `/api/v1/completions` | Get chore completion history (paginated) |
+| GET | `/api/v1/activity` | Get unified activity feed (paginated) |
+
+### Example
+
+```bash
+# Get all chores for your family
+curl -k -H "Authorization: Bearer choreo_xxxxx" https://localhost:5173/api/v1/chores
+
+# Create a new chore
+curl -k -X POST https://localhost:5173/api/v1/chores \
+  -H "Authorization: Bearer choreo_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Wash Dishes", "emoji": "🧹"}'
+
+# Update redemption to fulfilled
+curl -k -X PUT https://localhost:5173/api/v1/redemptions?id=ulid_here \
+  -H "Authorization: Bearer choreo_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "fulfilled"}'
+```
+
+See [REST_API.md](REST_API.md) for detailed endpoint documentation and [/api/docs](/api/docs) for the interactive Swagger UI.
+

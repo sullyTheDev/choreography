@@ -15,7 +15,7 @@
     "lint": "svelte-check --tsconfig ./tsconfig.json",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:migrate:prod": "node --import tsx/esm src/migrate.ts",
+    "db:migrate:prod": "node src/migrate.mjs",
     "db:seed": "tsx src/lib/server/db/seed.ts"
   },
   "dependencies": {
@@ -33,6 +33,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "^0.40.0",
     "pino": "^9.3.2",
+    "swagger-ui-dist": "^5.32.4",
     "tailwindcss": "^4.2.2",
     "ulid": "^2.3.0"
   },

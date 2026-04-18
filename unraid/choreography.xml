@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>Choreography</Name>
+  <Repository>ghcr.io/sullythedev/choreography:latest</Repository>
+  <Registry>https://ghcr.io</Registry>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/sullyTheDev/choreography/issues</Support>
+  <Project>https://github.com/sullyTheDev/choreography</Project>
+  <Overview>Choreography is a family chore and rewards app. It stores data in SQLite at /app/data, runs migrations on startup, and serves the web UI on port 3000.</Overview>
+  <Category>HomeAutomation: Tools:</Category>
+  <WebUI>http://[IP]:[PORT:3000]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/sullyTheDev/choreography/main/static/favicon.png</Icon>
+
+  <Config Name="AppData" Target="/app/data" Default="/mnt/user/appdata/choreography/data" Mode="rw" Description="Persistent app data directory (SQLite DB)" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/choreography/data</Config>
+  <Config Name="WebUI Port" Target="3000" Default="3000" Mode="tcp" Description="Container web port" Type="Port" Display="always" Required="true" Mask="false">3000</Config>
+
+  <Config Name="BETTER_AUTH_SECRET" Target="BETTER_AUTH_SECRET" Default="" Mode="" Description="Required. 32+ character secret used by Better Auth." Type="Variable" Display="always" Required="true" Mask="true"></Config>
+  <Config Name="ORIGIN" Target="ORIGIN" Default="http://[IP]:3000" Mode="" Description="Public base URL for CSRF and auth callbacks." Type="Variable" Display="always" Required="true" Mask="false">http://[IP]:3000</Config>
+  <Config Name="DATABASE_URL" Target="DATABASE_URL" Default="file:./data/choreography.db" Mode="" Description="SQLite location inside the container." Type="Variable" Display="advanced" Required="false" Mask="false">file:./data/choreography.db</Config>
+  <Config Name="AUTH_MODE" Target="AUTH_MODE" Default="local" Mode="" Description="Auth mode: local | oidc | both" Type="Variable" Display="advanced" Required="false" Mask="false">local</Config>
+  <Config Name="LOG_LEVEL" Target="LOG_LEVEL" Default="info" Mode="" Description="Logging level." Type="Variable" Display="advanced" Required="false" Mask="false">info</Config>
+  <Config Name="PUID" Target="PUID" Default="99" Mode="" Description="User ID used to own bind-mounted files." Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+  <Config Name="PGID" Target="PGID" Default="100" Mode="" Description="Group ID used to own bind-mounted files." Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+
+  <Config Name="OIDC_ISSUER" Target="OIDC_ISSUER" Default="" Mode="" Description="OIDC issuer URL (required for AUTH_MODE=oidc or both)." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="OIDC_CLIENT_ID" Target="OIDC_CLIENT_ID" Default="" Mode="" Description="OIDC client ID." Type="Variable" Display="advanced" Required="false" Mask="false"></Config>
+  <Config Name="OIDC_CLIENT_SECRET" Target="OIDC_CLIENT_SECRET" Default="" Mode="" Description="OIDC client secret." Type="Variable" Display="advanced" Required="false" Mask="true"></Config>
+  <Config Name="OIDC_ACCOUNT_CLAIM" Target="OIDC_ACCOUNT_CLAIM" Default="email" Mode="" Description="Claim used to match local accounts." Type="Variable" Display="advanced" Required="false" Mask="false">email</Config>
+  <Config Name="OIDC_ISSUER_LABEL" Target="OIDC_ISSUER_LABEL" Default="Single Sign-On" Mode="" Description="Button label for OIDC login." Type="Variable" Display="advanced" Required="false" Mask="false">Single Sign-On</Config>
+  <Config Name="OIDC_ZERO_MATCH_POLICY" Target="OIDC_ZERO_MATCH_POLICY" Default="deny" Mode="" Description="Zero match behavior: deny | provision" Type="Variable" Display="advanced" Required="false" Mask="false">deny</Config>
+</Container>
