@@ -7,10 +7,12 @@ import {
 	prizes,
 	authUser,
 	familyMembers,
-	activityEvents
+	activityEvents,
+	families
 } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
+import { dispatchWebhook } from '$lib/server/webhook.js';
 
 const PAGE_SIZE = 10;
 
@@ -113,7 +115,8 @@ export const actions: Actions = {
 				id: prizeRedemptions.id,
 				prizeId: prizeRedemptions.prizeId,
 				memberId: prizeRedemptions.memberId,
-				status: prizeRedemptions.status
+				status: prizeRedemptions.status,
+				coinCost: prizeRedemptions.coinCost
 			})
 			.from(prizeRedemptions)
 			.where(
@@ -133,6 +136,13 @@ export const actions: Actions = {
 			.select({ title: prizes.title })
 			.from(prizes)
 			.where(and(eq(prizes.id, existing.prizeId), eq(prizes.familyId, familyId)))
+			.limit(1);
+
+		// Fetch subject member name for webhook
+		const [subjectMember] = await db
+			.select({ name: authUser.name })
+			.from(authUser)
+			.where(eq(authUser.id, existing.memberId))
 			.limit(1);
 
 		const occurredAt = now();
@@ -169,6 +179,31 @@ export const actions: Actions = {
 			{ redemptionId, adminId: session.memberId, familyId },
 			'Prize redemption fulfilled (pending → fulfilled)'
 		);
+
+		try {
+			const [familyRow] = await db
+				.select({ name: families.name, webhookUrl: families.webhookUrl })
+				.from(families)
+				.where(eq(families.id, familyId))
+				.limit(1);
+			if (familyRow?.webhookUrl) {
+				dispatchWebhook(familyRow.webhookUrl, {
+					event: 'prize_fulfilled',
+					timestamp: occurredAt,
+					family: { id: familyId, name: familyRow.name },
+					actor: { id: session.memberId, name: session.displayName },
+					subject: { id: existing.memberId, name: subjectMember?.name ?? existing.memberId },
+					chore: null,
+					prize: { id: existing.prizeId, title: prize?.title ?? 'Unknown prize', coinCost: existing.coinCost },
+					coinsAwarded: null,
+					coinsSpent: null,
+					redemptionId
+				});
+			}
+		} catch (err) {
+			logger.warn({ err, familyId }, 'Failed to dispatch prize_fulfilled webhook');
+		}
+
 		return { success: true };
 	},
 
@@ -184,7 +219,12 @@ export const actions: Actions = {
 
 		// Verify the row is still pending and belongs to this family
 		const [existing] = await db
-			.select({ id: prizeRedemptions.id })
+				.select({
+					id: prizeRedemptions.id,
+					prizeId: prizeRedemptions.prizeId,
+					memberId: prizeRedemptions.memberId,
+					coinCost: prizeRedemptions.coinCost
+				})
 			.from(prizeRedemptions)
 			.where(
 				and(
@@ -199,6 +239,20 @@ export const actions: Actions = {
 			return { success: false, conflict: 'already_processed' };
 		}
 
+			const [prize] = await db
+				.select({ title: prizes.title })
+				.from(prizes)
+				.where(and(eq(prizes.id, existing.prizeId), eq(prizes.familyId, familyId)))
+				.limit(1);
+
+			const [subjectMember] = await db
+				.select({ name: authUser.name })
+				.from(authUser)
+				.where(eq(authUser.id, existing.memberId))
+				.limit(1);
+
+			const occurredAt = now();
+
 		await db
 			.delete(prizeRedemptions)
 			.where(
@@ -209,6 +263,31 @@ export const actions: Actions = {
 			{ redemptionId, adminId: session.memberId, familyId },
 			'Prize redemption dismissed (pending → deleted)'
 		);
+
+			try {
+				const [familyRow] = await db
+					.select({ name: families.name, webhookUrl: families.webhookUrl })
+					.from(families)
+					.where(eq(families.id, familyId))
+					.limit(1);
+				if (familyRow?.webhookUrl) {
+					dispatchWebhook(familyRow.webhookUrl, {
+						event: 'prize_dismissed',
+						timestamp: occurredAt,
+						family: { id: familyId, name: familyRow.name },
+						actor: { id: session.memberId, name: session.displayName },
+						subject: { id: existing.memberId, name: subjectMember?.name ?? existing.memberId },
+						chore: null,
+						prize: { id: existing.prizeId, title: prize?.title ?? 'Unknown prize', coinCost: existing.coinCost },
+						coinsAwarded: null,
+						coinsSpent: null,
+						redemptionId
+					});
+				}
+			} catch (err) {
+				logger.warn({ err, familyId }, 'Failed to dispatch prize_dismissed webhook');
+			}
+
 		return { success: true };
 	}
 };

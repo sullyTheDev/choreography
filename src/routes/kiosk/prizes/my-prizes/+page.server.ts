@@ -2,9 +2,10 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { error, fail } from '@sveltejs/kit';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { activityEvents, prizeRedemptions, prizes } from '$lib/server/db/schema.js';
+import { activityEvents, authUser, families, prizeRedemptions, prizes } from '$lib/server/db/schema.js';
 import { now, ulid } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
+import { dispatchWebhook } from '$lib/server/webhook.js';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { session } = locals;
@@ -66,7 +67,7 @@ export const actions: Actions = {
 		if (!requestedMemberId) return fail(400, { error: 'Member ID required' });
 
 		const [existing] = await db
-			.select({ id: prizeRedemptions.id, prizeId: prizeRedemptions.prizeId })
+			.select({ id: prizeRedemptions.id, prizeId: prizeRedemptions.prizeId, coinCost: prizeRedemptions.coinCost })
 			.from(prizeRedemptions)
 			.where(
 				and(
@@ -84,6 +85,12 @@ export const actions: Actions = {
 			.select({ title: prizes.title })
 			.from(prizes)
 			.where(and(eq(prizes.id, existing.prizeId), eq(prizes.familyId, session.familyId)))
+			.limit(1);
+
+		const [subjectMember] = await db
+			.select({ name: authUser.name })
+			.from(authUser)
+			.where(eq(authUser.id, requestedMemberId))
 			.limit(1);
 
 		const occurredAt = now();
@@ -115,6 +122,31 @@ export const actions: Actions = {
 		});
 
 		logger.info({ redemptionId, memberId: requestedMemberId }, 'Prize redemption used (available → pending) - kiosk');
+
+		try {
+			const [familyRow] = await db
+				.select({ name: families.name, webhookUrl: families.webhookUrl })
+				.from(families)
+				.where(eq(families.id, session.familyId))
+				.limit(1);
+			if (familyRow?.webhookUrl) {
+				dispatchWebhook(familyRow.webhookUrl, {
+					event: 'prize_redeemed',
+					timestamp: occurredAt,
+					family: { id: session.familyId, name: familyRow.name },
+					actor: { id: requestedMemberId, name: subjectMember?.name ?? requestedMemberId },
+					subject: null,
+					chore: null,
+					prize: { id: existing.prizeId, title: prize?.title ?? 'Unknown prize', coinCost: existing.coinCost },
+					coinsAwarded: null,
+					coinsSpent: null,
+					redemptionId
+				});
+			}
+		} catch (err) {
+			logger.warn({ err, familyId: session.familyId }, 'Failed to dispatch prize_redeemed webhook (kiosk)');
+		}
+
 		return { success: true };
 	}
 };

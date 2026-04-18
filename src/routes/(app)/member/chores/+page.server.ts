@@ -2,9 +2,10 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, choreCompletions, authUser, familyMembers, choreAssignments, activityEvents } from '$lib/server/db/schema.js';
+import { chores, choreCompletions, authUser, familyMembers, choreAssignments, activityEvents, families } from '$lib/server/db/schema.js';
 import { ulid, now, getPeriodKey } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
+import { dispatchWebhook } from '$lib/server/webhook.js';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { session } = locals;
@@ -86,7 +87,7 @@ export const actions: Actions = {
 		if (!effectiveMemberId) return fail(400, { error: 'Member ID is required' });
 
 		const [targetMember] = await db
-			.select({ id: authUser.id })
+			.select({ id: authUser.id, name: authUser.name })
 			.from(familyMembers)
 			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
 			.where(
@@ -187,6 +188,33 @@ export const actions: Actions = {
 			{ completionId: id, choreId, memberId: effectiveMemberId, coins: chore.coinValue },
 			'Chore completed'
 		);
+
+		try {
+			const [familyRow] = await db
+				.select({ name: families.name, webhookUrl: families.webhookUrl })
+				.from(families)
+				.where(eq(families.id, session.familyId))
+				.limit(1);
+			if (familyRow?.webhookUrl) {
+				const isAdminActing = effectiveMemberId !== session.memberId;
+				dispatchWebhook(familyRow.webhookUrl, {
+					event: 'chore_completed',
+					timestamp: occurredAt,
+					family: { id: session.familyId, name: familyRow.name },
+					actor: { id: session.memberId, name: session.displayName },
+					subject: isAdminActing
+						? { id: effectiveMemberId, name: targetMember?.name ?? effectiveMemberId }
+						: null,
+					chore: { id: choreId, title: chore.title, coinValue: chore.coinValue },
+					prize: null,
+					coinsAwarded: chore.coinValue,
+					coinsSpent: null,
+					redemptionId: null
+				});
+			}
+		} catch (err) {
+			logger.warn({ err, familyId: session.familyId }, 'Failed to dispatch chore_completed webhook');
+		}
 
 		return { success: true };
 	}
