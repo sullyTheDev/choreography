@@ -238,3 +238,45 @@ describe('admin/family — deactivate action', () => {
 		expect((result as { status: number }).status).toBe(400);
 	});
 });
+
+describe('admin/family — reactivate action', () => {
+	it('sets isActive back to true', async () => {
+		const { familyId, parentId } = await seedFamily();
+		const memberId = ulid();
+		await testDb.insert(authUser).values({
+			id: memberId,
+			name: 'Emma',
+			avatarEmoji: '👧',
+			email: null,
+			emailVerified: false,
+			isActive: false,
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		await testDb.insert(authAccount).values({
+			id: `pin_${memberId}`,
+			accountId: memberId,
+			providerId: 'pin-auth',
+			userId: memberId,
+			password: await hashPin('1234'),
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		await testDb.insert(familyMembers).values({
+			memberId,
+			familyId,
+			role: 'member',
+			joinedAt: now()
+		});
+
+		const actions = await getActions();
+		const result = await actions.reactivate(
+			mockEvent(parentSession(familyId, parentId), { id: memberId })
+		);
+
+		expect(result).toMatchObject({ success: true });
+
+		const [updated] = await testDb.select().from(authUser).where(eq(authUser.id, memberId));
+		expect(updated.isActive).toBe(true);
+	});
+});

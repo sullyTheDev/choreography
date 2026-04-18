@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		})
 		.from(familyMembers)
 		.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
-		.where(and(eq(familyMembers.familyId, session.familyId), eq(authUser.isActive, true)));
+		.where(eq(familyMembers.familyId, session.familyId));
 
 	const rows = await Promise.all(
 		rawMembers.map(async (member) => {
@@ -278,6 +278,29 @@ export const actions: Actions = {
 		}
 
 		await db.update(authUser).set({ isActive: false, updatedAt: new Date() }).where(eq(authUser.id, id));
+		return { success: true };
+	},
+
+	reactivate: async ({ request, locals }) => {
+		const { session } = locals;
+		if (!session || session.memberRole !== 'admin') error(403, 'Forbidden');
+
+		const data = await request.formData();
+		const id = String(data.get('id') ?? '').trim();
+		if (!id) return fail(400, { error: 'Member id is required.' });
+
+		const [target] = await db
+			.select({ isActive: authUser.isActive })
+			.from(familyMembers)
+			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+			.where(and(eq(familyMembers.familyId, session.familyId), eq(familyMembers.memberId, id)))
+			.limit(1);
+		if (!target) return fail(404, { error: 'Member not found.' });
+
+		if (!target.isActive) {
+			await db.update(authUser).set({ isActive: true, updatedAt: new Date() }).where(eq(authUser.id, id));
+		}
+
 		return { success: true };
 	}
 };

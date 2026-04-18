@@ -114,6 +114,9 @@
 						</div>
 						<div class="flex-1">
 							<div class="text-xl font-semibold">{member.displayName} <span class="text-sm text-surface-500">({member.role})</span></div>
+							<div class="text-xs {member.isActive ? 'text-success-700-300' : 'text-warning-700-300'}">
+								{member.isActive ? 'Active' : 'Inactive'}
+							</div>
 					</div>
 						<div class="flex items-center gap-2">
 
@@ -125,16 +128,29 @@
 							editingRole = member.role as 'admin' | 'member';
 						}
 					}}><Icon icon="material-symbols:edit" class="h-5 w-5" /></button>
-						<form method="POST" action="?/deactivate" use:enhance={() => {
+						<form method="POST" action={member.isActive ? '?/deactivate' : '?/reactivate'} use:enhance={() => {
 							return async ({ result, update }) => {
 								await update();
 								if (result.type === 'failure' && result.data?.error) {
-									toaster.error({ title: 'Cannot deactivate', description: String(result.data.error) });
+									toaster.error({
+										title: member.isActive ? 'Cannot deactivate' : 'Cannot reactivate',
+										description: String(result.data.error)
+									});
+								} else if (result.type !== 'failure') {
+									toaster.success({
+										title: member.isActive ? 'Member deactivated' : 'Member reactivated',
+										description: `${member.displayName} was ${member.isActive ? 'deactivated' : 'reactivated'}.`
+									});
 								}
 							};
 						}}>
 							<input type="hidden" name="id" value={member.id} />
-							<button class="btn preset-tonal-error" aria-label="Deactivate {member.displayName}" disabled={!member.isActive}><Icon icon="material-symbols:person-off" class="h-5 w-5" /></button>
+							<button
+								class="btn {member.isActive ? 'preset-tonal-error' : 'preset-tonal-success'}"
+								aria-label="{member.isActive ? 'Deactivate' : 'Reactivate'} {member.displayName}"
+							>
+								<Icon icon={member.isActive ? 'material-symbols:person-off' : 'material-symbols:person-check'} class="h-5 w-5" />
+							</button>
 							</form>
 						</div>
 					</div>

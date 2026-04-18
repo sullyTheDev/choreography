@@ -155,6 +155,10 @@
               },
               "displayName": {
                 "type": "string"
+              },
+              "isActive": {
+                "type": "boolean",
+                "description": "Whether the user account is active"
               }
             }
           }
@@ -837,6 +841,34 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/members/reactivate": {
+      "post": {
+        "tags": ["Members"],
+        "summary": "Reactivate an inactive family member",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["memberId"],
+                "properties": {
+                  "memberId": {
+                    "type": "string",
+                    "description": "Member ID to reactivate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Member reactivated"
           }
         }
       }
