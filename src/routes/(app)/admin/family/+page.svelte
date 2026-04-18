@@ -291,29 +291,35 @@
 	</Portal>
 </Dialog>
 
-<Dialog open={memberPendingDeactivate !== null} closeOnEscape={true}>
+<Dialog
+	open={memberPendingDeactivate !== null}
+	closeOnEscape={true}
+	onOpenChange={(details) => {
+		if (!details.open) closeDeactivateDialog();
+	}}
+>
 	<Portal>
 		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/70" />
 		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-center items-center p-4">
 			<Dialog.Content class="card preset-filled-surface-100-900 w-full max-w-md p-6 space-y-4 shadow-xl">
-				<Dialog.Title class="text-xl font-bold">Deactivate member?</Dialog.Title>
-				<Dialog.Description class="text-sm text-surface-600-400 space-y-2">
-					<p>
-						You are about to deactivate
-						<strong>{memberPendingDeactivate?.displayName ?? 'this member'}</strong>
-						{#if memberPendingDeactivate?.email}
-							(<span class="font-mono">{memberPendingDeactivate.email}</span>)
-						{/if}.
-					</p>
-					<p>This user will lose access until an admin reactivates their account.</p>
-				</Dialog.Description>
 				{#if memberPendingDeactivate}
+					<Dialog.Title class="text-xl font-bold">Deactivate member?</Dialog.Title>
+					<Dialog.Description class="text-sm text-surface-600-400 space-y-2">
+						<p>
+							You are about to deactivate
+							<strong>{memberPendingDeactivate.displayName}</strong>
+							{#if memberPendingDeactivate.email}
+								(<span class="font-mono">{memberPendingDeactivate.email}</span>)
+							{/if}.
+						</p>
+						<p>This user will lose access until an admin reactivates their account.</p>
+					</Dialog.Description>
 					<form
 						method="POST"
 						action="?/deactivate"
 						class="flex justify-end gap-2"
 						use:enhance={() => {
-							const member = memberPendingDeactivate;
+							const memberDisplayName = memberPendingDeactivate?.displayName ?? 'Member';
 							return async ({ result, update }) => {
 								await update();
 								if (result.type === 'failure' && result.data?.error) {
@@ -324,7 +330,7 @@
 								} else if (result.type !== 'failure') {
 									toaster.success({
 										title: 'Member deactivated',
-										description: `${member?.displayName ?? 'Member'} was deactivated.`
+										description: `${memberDisplayName} was deactivated.`
 									});
 								}
 								closeDeactivateDialog();
