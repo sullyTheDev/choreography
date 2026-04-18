@@ -1,0 +1,1153 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Choreography REST API",
+    "description": "Family-scoped REST API for managing chores, prizes, and redemptions",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Choreography Support",
+      "url": "https://github.com/your-org/choreography"
+    },
+    "license": {
+      "name": "MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1",
+      "description": "Production API"
+    },
+    {
+      "url": "https://localhost:5173/api/v1",
+      "description": "Development API (self-signed SSL)"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "API Key in Bearer token format (choreo_xxxxx)"
+      }
+    },
+    "schemas": {
+      "Chore": {
+        "type": "object",
+        "required": ["id", "familyId", "name", "emoji", "createdAt", "updatedAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier (ULID)"
+          },
+          "familyId": {
+            "type": "string",
+            "description": "Family this chore belongs to"
+          },
+          "name": {
+            "type": "string",
+            "description": "Chore name",
+            "example": "Wash Dishes"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional description",
+            "example": "Wash all dishes in the sink"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Emoji icon for the chore",
+            "example": "🧹"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "Prize": {
+        "type": "object",
+        "required": ["id", "familyId", "name", "emoji", "costPoints", "createdAt", "updatedAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier (ULID)"
+          },
+          "familyId": {
+            "type": "string",
+            "description": "Family this prize belongs to"
+          },
+          "name": {
+            "type": "string",
+            "description": "Prize name",
+            "example": "Ice Cream"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "description": "Optional description",
+            "example": "Get a free scoop of ice cream"
+          },
+          "emoji": {
+            "type": "string",
+            "description": "Emoji icon for the prize",
+            "example": "🍦"
+          },
+          "costPoints": {
+            "type": "integer",
+            "description": "Points required to redeem",
+            "example": 100
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "FamilyMember": {
+        "type": "object",
+        "required": ["memberId", "familyId", "displayName", "memberRole", "createdAt"],
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "description": "User ID"
+          },
+          "familyId": {
+            "type": "string",
+            "description": "Family this member belongs to"
+          },
+          "displayName": {
+            "type": "string",
+            "description": "Display name in family",
+            "example": "Alice"
+          },
+          "memberRole": {
+            "type": "string",
+            "enum": ["admin", "member"],
+            "description": "Role in the family"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "displayName": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Redemption": {
+        "type": "object",
+        "required": ["id", "familyId", "memberId", "prizeId", "status", "createdAt", "updatedAt"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique identifier (ULID)"
+          },
+          "familyId": {
+            "type": "string",
+            "description": "Family this redemption belongs to"
+          },
+          "memberId": {
+            "type": "string",
+            "description": "Member redeeming the prize"
+          },
+          "prizeId": {
+            "type": "string",
+            "description": "Prize being redeemed"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["available", "pending", "fulfilled", "dismissed"],
+            "description": "Current status of the redemption",
+            "example": "available"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fulfilledAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the prize was fulfilled"
+          },
+          "dismissedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "When the redemption was dismissed"
+          }
+        }
+      },
+      "Completion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "choreId": {
+            "type": "string"
+          },
+          "choreName": {
+            "type": "string"
+          },
+          "choreEmoji": {
+            "type": "string"
+          },
+          "memberId": {
+            "type": "string"
+          },
+          "memberDisplayName": {
+            "type": "string"
+          },
+          "completedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "pointsEarned": {
+            "type": "integer"
+          }
+        }
+      },
+      "ActivityEvent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["completion"]
+              },
+              "id": {
+                "type": "string"
+              },
+              "choreName": {
+                "type": "string"
+              },
+              "choreEmoji": {
+                "type": "string"
+              },
+              "memberDisplayName": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pointsEarned": {
+                "type": "integer"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["redemption"]
+              },
+              "id": {
+                "type": "string"
+              },
+              "prizeName": {
+                "type": "string"
+              },
+              "prizeEmoji": {
+                "type": "string"
+              },
+              "memberDisplayName": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["available", "pending", "fulfilled", "dismissed"]
+              }
+            }
+          }
+        ]
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "required": ["success"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [true]
+          },
+          "data": {}
+        }
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["success", "error"],
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "enum": [false]
+          },
+          "error": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "enum": ["UNAUTHORIZED", "NOT_FOUND", "INVALID_INPUT", "INVALID_JSON", "METHOD_NOT_ALLOWED", "INTERNAL_ERROR"]
+          }
+        }
+      },
+      "PaginatedResponse": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer"
+          },
+          "offset": {
+            "type": "integer"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "hasMore": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "paths": {
+    "/chores": {
+      "get": {
+        "tags": ["Chores"],
+        "summary": "List all chores",
+        "description": "Get all chores for the family associated with the API key",
+        "responses": {
+          "200": {
+            "description": "List of chores",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Chore"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid API key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Chores"],
+        "summary": "Create a new chore",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Wash Dishes"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Wash all dishes in the sink"
+                  },
+                  "emoji": {
+                    "type": "string",
+                    "example": "🧹"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Chore created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Chore"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid input",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/chores?id={choreId}": {
+      "get": {
+        "tags": ["Chores"],
+        "summary": "Get a specific chore",
+        "parameters": [
+          {
+            "name": "choreId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chore details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Chore"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Chore not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Chores"],
+        "summary": "Update a chore",
+        "parameters": [
+          {
+            "name": "choreId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "emoji": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chore updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Chore"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Chores"],
+        "summary": "Delete a chore",
+        "parameters": [
+          {
+            "name": "choreId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Chore deleted"
+          }
+        }
+      }
+    },
+    "/prizes": {
+      "get": {
+        "tags": ["Prizes"],
+        "summary": "List all prizes",
+        "responses": {
+          "200": {
+            "description": "List of prizes",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Prize"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Prizes"],
+        "summary": "Create a new prize",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "costPoints"],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "Ice Cream"
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "Get a free scoop"
+                  },
+                  "emoji": {
+                    "type": "string",
+                    "example": "🍦"
+                  },
+                  "costPoints": {
+                    "type": "integer",
+                    "example": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Prize created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Prize"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/prizes?id={prizeId}": {
+      "get": {
+        "tags": ["Prizes"],
+        "summary": "Get a specific prize",
+        "parameters": [
+          {
+            "name": "prizeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prize details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Prize"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Prizes"],
+        "summary": "Update a prize",
+        "parameters": [
+          {
+            "name": "prizeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "emoji": {
+                    "type": "string"
+                  },
+                  "costPoints": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Prize updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Prize"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Prizes"],
+        "summary": "Delete a prize",
+        "parameters": [
+          {
+            "name": "prizeId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Prize deleted"
+          }
+        }
+      }
+    },
+    "/members": {
+      "get": {
+        "tags": ["Members"],
+        "summary": "List all family members",
+        "responses": {
+          "200": {
+            "description": "List of family members",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FamilyMember"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/members?id={memberId}": {
+      "get": {
+        "tags": ["Members"],
+        "summary": "Get a specific family member",
+        "parameters": [
+          {
+            "name": "memberId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Member details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/FamilyMember"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/redemptions": {
+      "get": {
+        "tags": ["Redemptions"],
+        "summary": "List redemptions",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["available", "pending", "fulfilled", "dismissed"]
+            },
+            "description": "Filter by status"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of redemptions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Redemption"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Redemptions"],
+        "summary": "Create a redemption",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["memberId", "prizeId"],
+                "properties": {
+                  "memberId": {
+                    "type": "string",
+                    "description": "Member redeeming the prize"
+                  },
+                  "prizeId": {
+                    "type": "string",
+                    "description": "Prize to redeem"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Redemption created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Redemption"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/redemptions?id={redemptionId}": {
+      "get": {
+        "tags": ["Redemptions"],
+        "summary": "Get a specific redemption",
+        "parameters": [
+          {
+            "name": "redemptionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Redemption details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Redemption"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Redemptions"],
+        "summary": "Update redemption status",
+        "parameters": [
+          {
+            "name": "redemptionId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["available", "pending", "fulfilled", "dismissed"],
+                    "description": "New status for the redemption"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Redemption updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "$ref": "#/components/schemas/Redemption"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/completions": {
+      "get": {
+        "tags": ["Completions"],
+        "summary": "Get chore completion history (read-only)",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Completion history",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "completions": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/Completion"
+                          }
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginatedResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/activity": {
+      "get": {
+        "tags": ["Activity"],
+        "summary": "Get unified activity feed (read-only)",
+        "description": "Get combined events from chore completions and prize redemptions",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 50,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Activity feed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": {
+                      "type": "boolean"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "events": {
+                          "type": "array",
+                          "items": {
+                            "$ref": "#/components/schemas/ActivityEvent"
+                          }
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginatedResponse"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Chores",
+      "description": "Chore management endpoints"
+    },
+    {
+      "name": "Prizes",
+      "description": "Prize management endpoints"
+    },
+    {
+      "name": "Members",
+      "description": "Family member information (read-only)"
+    },
+    {
+      "name": "Redemptions",
+      "description": "Prize redemption management"
+    },
+    {
+      "name": "Completions",
+      "description": "Chore completion history (read-only)"
+    },
+    {
+      "name": "Activity",
+      "description": "Unified activity feed (read-only)"
+    }
+  ]
+}
