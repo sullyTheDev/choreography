@@ -92,6 +92,17 @@
 				<span class="text-sm text-surface-600-400">Configure your family's preferences</span>
 			</div>
 		</a>
+
+		<a
+			href="/admin/notifications"
+			class="card border preset-outlined-primary-200-800 shadow-md p-6 flex items-center gap-4 hover:preset-tonal-primary transition-colors no-underline"
+		>
+			<Icon icon="material-symbols:notifications" class="h-10 w-10 text-primary-500 shrink-0" />
+			<div>
+				<strong class="text-lg font-semibold block">Notifications</strong>
+				<span class="text-sm text-surface-600-400">Configure webhooks for family events</span>
+			</div>
+		</a>
 	</div>
 </section>
 

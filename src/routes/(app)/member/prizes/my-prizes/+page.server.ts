@@ -2,9 +2,10 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { error, fail } from '@sveltejs/kit';
 import { and, asc, desc, eq } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { activityEvents, prizeRedemptions, prizes } from '$lib/server/db/schema.js';
+import { activityEvents, authUser, families, prizeRedemptions, prizes } from '$lib/server/db/schema.js';
 import { now, ulid } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
+import { dispatchWebhook } from '$lib/server/webhook.js';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { session } = locals;
@@ -68,7 +69,7 @@ export const actions: Actions = {
 			session.memberRole === 'member' ? session.memberId : requestedMemberId || session.memberId;
 
 		const [existing] = await db
-			.select({ id: prizeRedemptions.id, prizeId: prizeRedemptions.prizeId })
+			.select({ id: prizeRedemptions.id, prizeId: prizeRedemptions.prizeId, coinCost: prizeRedemptions.coinCost })
 			.from(prizeRedemptions)
 			.where(
 				and(
@@ -86,6 +87,13 @@ export const actions: Actions = {
 			.select({ title: prizes.title })
 			.from(prizes)
 			.where(and(eq(prizes.id, existing.prizeId), eq(prizes.familyId, session.familyId)))
+			.limit(1);
+
+		// Fetch subject member name for webhook (needed when admin acts on behalf of member)
+		const [subjectMember] = await db
+			.select({ name: authUser.name })
+			.from(authUser)
+			.where(eq(authUser.id, effectiveMemberId))
 			.limit(1);
 
 		const occurredAt = now();
@@ -117,6 +125,34 @@ export const actions: Actions = {
 		});
 
 		logger.info({ redemptionId, memberId: effectiveMemberId }, 'Prize redemption used (available → pending)');
+
+		try {
+			const [familyRow] = await db
+				.select({ name: families.name, webhookUrl: families.webhookUrl })
+				.from(families)
+				.where(eq(families.id, session.familyId))
+				.limit(1);
+			if (familyRow?.webhookUrl) {
+				const isAdminActing = effectiveMemberId !== session.memberId;
+				dispatchWebhook(familyRow.webhookUrl, {
+					event: 'prize_redeemed',
+					timestamp: occurredAt,
+					family: { id: session.familyId, name: familyRow.name },
+					actor: { id: session.memberId, name: session.displayName },
+					subject: isAdminActing
+						? { id: effectiveMemberId, name: subjectMember?.name ?? effectiveMemberId }
+						: null,
+					chore: null,
+					prize: { id: existing.prizeId, title: prize?.title ?? 'Unknown prize', coinCost: existing.coinCost },
+					coinsAwarded: null,
+					coinsSpent: null,
+					redemptionId
+				});
+			}
+		} catch (err) {
+			logger.warn({ err, familyId: session.familyId }, 'Failed to dispatch prize_redeemed webhook');
+		}
+
 		return { success: true };
 	}
 };
