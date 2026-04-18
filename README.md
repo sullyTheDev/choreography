@@ -188,3 +188,58 @@ tests/
 5. **Kids log in** — kids go to `/login`, switch to "I'm a Kid", enter the family code (shown in Settings) and their PIN.
 6. **Earn & spend** — kids complete chores to earn coins and redeem prizes to spend them.
 7. **Compete** — the Leaderboard tab shows weekly rankings across the family.
+
+## REST API
+
+The app exposes a **family-scoped REST API** for programmatic access to chores, prizes, redemptions, and activity data.
+
+### Getting Started
+
+1. **Generate an API key** — go to Admin → Settings and click "Generate API Key"
+2. **Save the key** — it's shown only once; store it securely
+3. **Use Bearer auth** — include `Authorization: Bearer <your-key>` header in requests
+
+### Interactive Documentation
+
+Visit [/api/docs](http://localhost:5173/api/docs) to explore the API with Swagger UI. You can test endpoints directly in the browser by pasting your API key.
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/v1/chores` | List all chores |
+| POST | `/api/v1/chores` | Create a new chore |
+| PUT | `/api/v1/chores?id=...` | Update a chore |
+| DELETE | `/api/v1/chores?id=...` | Delete a chore |
+| GET | `/api/v1/prizes` | List all prizes |
+| POST | `/api/v1/prizes` | Create a new prize |
+| PUT | `/api/v1/prizes?id=...` | Update a prize |
+| DELETE | `/api/v1/prizes?id=...` | Delete a prize |
+| GET | `/api/v1/members` | List family members (read-only) |
+| GET | `/api/v1/redemptions` | List redemptions (filterable by status) |
+| POST | `/api/v1/redemptions` | Create a redemption |
+| PUT | `/api/v1/redemptions?id=...` | Update redemption status |
+| GET | `/api/v1/completions` | Get chore completion history (paginated) |
+| GET | `/api/v1/activity` | Get unified activity feed (paginated) |
+
+### Example
+
+```bash
+# Get all chores for your family
+curl -k -H "Authorization: Bearer choreo_xxxxx" https://localhost:5173/api/v1/chores
+
+# Create a new chore
+curl -k -X POST https://localhost:5173/api/v1/chores \
+  -H "Authorization: Bearer choreo_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Wash Dishes", "emoji": "🧹"}'
+
+# Update redemption to fulfilled
+curl -k -X PUT https://localhost:5173/api/v1/redemptions?id=ulid_here \
+  -H "Authorization: Bearer choreo_xxxxx" \
+  -H "Content-Type: application/json" \
+  -d '{"status": "fulfilled"}'
+```
+
+See [REST_API.md](REST_API.md) for detailed endpoint documentation and [/api/docs](/api/docs) for the interactive Swagger UI.
+
