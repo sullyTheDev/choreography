@@ -4,9 +4,9 @@
  */
 import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
-import { families, members, familyMembers } from '../../src/lib/server/db/schema.js';
+import { families, authUser, authAccount, familyMembers } from '../../src/lib/server/db/schema.js';
 import { ulid, now } from '../../src/lib/server/db/utils.js';
-import { hashPassword } from '../../src/lib/server/auth.js';
+import { hashPassword, hashPin } from '../../src/lib/server/auth.js';
 import { eq } from 'drizzle-orm';
 
 // Lazily import the server module (after vi.mock is in effect)
@@ -39,15 +39,24 @@ async function seedFamily() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: parentId,
-		displayName: 'Test Parent',
+		name: 'Test Parent',
 		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
-		passwordHash: await hashPassword('password123'),
-		pin: null,
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `cred_${parentId}`,
+		accountId: `parent-${familyId}@example.com`,
+		providerId: 'credential',
+		userId: parentId,
+		password: await hashPassword('password123'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId: parentId,
@@ -82,9 +91,9 @@ describe('admin/family — create action', () => {
 
 		expect(result).toMatchObject({ success: true });
 
-		const allMembers = await testDb.select().from(members);
+		const allMembers = await testDb.select().from(authUser);
 		expect(allMembers).toHaveLength(2);
-		const created = allMembers.find((m) => m.displayName === 'Emma');
+		const created = allMembers.find((m) => m.name === 'Emma');
 		expect(created).toBeDefined();
 		expect(created?.avatarEmoji).toBe('👧');
 		expect(created?.isActive).toBe(true);
@@ -133,15 +142,24 @@ describe('admin/family — update action', () => {
 	it('updates a member display name', async () => {
 		const { familyId, parentId } = await seedFamily();
 		const memberId = ulid();
-		await testDb.insert(members).values({
+		await testDb.insert(authUser).values({
 			id: memberId,
-			displayName: 'Emma',
+			name: 'Emma',
 			avatarEmoji: '👧',
 			email: null,
-			passwordHash: null,
-			pin: 'hashed',
+			emailVerified: false,
 			isActive: true,
-			createdAt: now()
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		await testDb.insert(authAccount).values({
+			id: `pin_${memberId}`,
+			accountId: memberId,
+			providerId: 'pin-auth',
+			userId: memberId,
+			password: await hashPin('1234'),
+			createdAt: new Date(),
+			updatedAt: new Date()
 		});
 		await testDb.insert(familyMembers).values({
 			memberId,
@@ -163,8 +181,8 @@ describe('admin/family — update action', () => {
 
 		expect(result).toMatchObject({ success: true });
 
-		const [updated] = await testDb.select().from(members).where(eq(members.id, memberId));
-		expect(updated.displayName).toBe('Emma Belle');
+		const [updated] = await testDb.select().from(authUser).where(eq(authUser.id, memberId));
+		expect(updated.name).toBe('Emma Belle');
 	});
 });
 
@@ -172,15 +190,24 @@ describe('admin/family — deactivate action', () => {
 	it('sets isActive to false', async () => {
 		const { familyId, parentId } = await seedFamily();
 		const memberId = ulid();
-		await testDb.insert(members).values({
+		await testDb.insert(authUser).values({
 			id: memberId,
-			displayName: 'Emma',
+			name: 'Emma',
 			avatarEmoji: '👧',
 			email: null,
-			passwordHash: null,
-			pin: 'hashed',
+			emailVerified: false,
 			isActive: true,
-			createdAt: now()
+			createdAt: new Date(),
+			updatedAt: new Date()
+		});
+		await testDb.insert(authAccount).values({
+			id: `pin_${memberId}`,
+			accountId: memberId,
+			providerId: 'pin-auth',
+			userId: memberId,
+			password: await hashPin('1234'),
+			createdAt: new Date(),
+			updatedAt: new Date()
 		});
 		await testDb.insert(familyMembers).values({
 			memberId,
@@ -196,7 +223,7 @@ describe('admin/family — deactivate action', () => {
 
 		expect(result).toMatchObject({ success: true });
 
-		const [updated] = await testDb.select().from(members).where(eq(members.id, memberId));
+		const [updated] = await testDb.select().from(authUser).where(eq(authUser.id, memberId));
 		expect(updated.isActive).toBe(false);
 	});
 

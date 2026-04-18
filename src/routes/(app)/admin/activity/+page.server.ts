@@ -8,7 +8,7 @@ import {
 	prizeRedemptions,
 	chores,
 	prizes,
-	members,
+	authUser,
 	familyMembers
 } from '$lib/server/db/schema.js';
 
@@ -43,10 +43,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			.where(eq(activityEvents.familyId, familyId))
 			.orderBy(desc(activityEvents.occurredAt)),
 		db
-			.select({ id: members.id, displayName: members.displayName, avatarEmoji: members.avatarEmoji })
+			.select({ id: authUser.id, displayName: authUser.name, avatarEmoji: authUser.avatarEmoji })
 			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
-			.where(and(eq(familyMembers.familyId, familyId), eq(members.isActive, true))),
+			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+			.where(and(eq(familyMembers.familyId, familyId), eq(authUser.isActive, true))),
 		db.select({ id: chores.id, title: chores.title }).from(chores).where(eq(chores.familyId, familyId)),
 		db.select({ id: prizes.id, title: prizes.title }).from(prizes).where(eq(prizes.familyId, familyId))
 	]);

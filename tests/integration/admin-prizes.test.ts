@@ -3,7 +3,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
-import { families, members, familyMembers, prizes } from '../../src/lib/server/db/schema.js';
+import { families, authUser, authAccount, familyMembers, prizes } from '../../src/lib/server/db/schema.js';
 import { ulid, now } from '../../src/lib/server/db/utils.js';
 import { hashPassword } from '../../src/lib/server/auth.js';
 
@@ -37,15 +37,24 @@ async function seedFamily() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: parentId,
-		displayName: 'Test Parent',
+		name: 'Test Parent',
 		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
-		passwordHash: await hashPassword('password123'),
-		pin: null,
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `cred_${parentId}`,
+		accountId: `parent-${familyId}@example.com`,
+		providerId: 'credential',
+		userId: parentId,
+		password: await hashPassword('password123'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId: parentId,

@@ -125,8 +125,8 @@ if (result.type !== 'failure') showCreate = false;
 <strong class="text-xl font-semibold">{chore.title}</strong>
 <div class="flex items-center gap-2 flex-wrap">
 <FrequencyBadge value={chore.frequency} />
-{#if chore.assignedMember}
-<span class="text-sm text-secondary-600-400">{chore.assignedMember.displayName}</span>
+{#if chore.assignedMemberIds.length > 0}
+<span class="text-sm text-secondary-600-400">{chore.assignedMemberIds.length} assigned</span>
 {:else}
 <span class="text-sm text-surface-500">Unassigned</span>
 {/if}

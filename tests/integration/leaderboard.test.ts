@@ -6,13 +6,14 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	members,
+	authUser,
+	authAccount,
 	familyMembers,
 	chores,
 	choreCompletions
 } from '../../src/lib/server/db/schema.js';
 import { ulid, now, getWeeklyPeriod } from '../../src/lib/server/db/utils.js';
-import { hashPassword } from '../../src/lib/server/auth.js';
+import { hashPassword, hashPin } from '../../src/lib/server/auth.js';
 import { eq } from 'drizzle-orm';
 
 const getLoad = async () =>
@@ -70,15 +71,24 @@ async function seedLeaderboardSetup() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: parentId,
-		displayName: 'Test Parent',
+		name: 'Test Parent',
 		avatarEmoji: '🧑',
 		email: `parent-lb-${familyId}@example.com`,
-		passwordHash: await hashPassword('password123'),
-		pin: null,
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `cred_${parentId}`,
+		accountId: `parent-lb-${familyId}@example.com`,
+		providerId: 'credential',
+		userId: parentId,
+		password: await hashPassword('password123'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId: parentId,
@@ -86,31 +96,51 @@ async function seedLeaderboardSetup() {
 		role: 'admin',
 		joinedAt: now()
 	});
-	await testDb.insert(members).values([
+	await testDb.insert(authUser).values([
 		{
 			id: memberId1,
-			displayName: 'Emma',
+			name: 'Emma',
 			avatarEmoji: '👧',
 			email: null,
-			passwordHash: null,
-			pin: 'hashed',
+			emailVerified: false,
 			isActive: true,
-			createdAt: now()
+			createdAt: new Date(),
+			updatedAt: new Date()
 		},
 		{
 			id: memberId2,
-			displayName: 'Liam',
+			name: 'Liam',
 			avatarEmoji: '👦',
 			email: null,
-			passwordHash: null,
-			pin: 'hashed',
+			emailVerified: false,
 			isActive: true,
-			createdAt: now()
+			createdAt: new Date(),
+			updatedAt: new Date()
 		}
 	]);
 	await testDb.insert(familyMembers).values([
 		{ memberId: memberId1, familyId, role: 'member', joinedAt: now() },
 		{ memberId: memberId2, familyId, role: 'member', joinedAt: now() }
+	]);
+	await testDb.insert(authAccount).values([
+		{
+			id: `pin_${memberId1}`,
+			accountId: memberId1,
+			providerId: 'pin-auth',
+			userId: memberId1,
+			password: await hashPin('1234'),
+			createdAt: new Date(),
+			updatedAt: new Date()
+		},
+		{
+			id: `pin_${memberId2}`,
+			accountId: memberId2,
+			providerId: 'pin-auth',
+			userId: memberId2,
+			password: await hashPin('5678'),
+			createdAt: new Date(),
+			updatedAt: new Date()
+		}
 	]);
 	await testDb.insert(chores).values([
 		{

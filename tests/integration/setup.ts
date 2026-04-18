@@ -36,12 +36,15 @@ afterEach(async () => {
 	await testDb.delete(schema.choreCompletions);
 	await testDb.delete(schema.choreAssignments);
 	await testDb.delete(schema.prizeAssignments);
-	await testDb.delete(schema.sessions);
 	await testDb.delete(schema.chores);
 	await testDb.delete(schema.prizes);
 	await testDb.delete(schema.familyMembers);
-	await testDb.delete(schema.members);
 	await testDb.delete(schema.families);
+	// Better-auth tables
+	await testDb.delete(schema.authVerification);
+	await testDb.delete(schema.authAccount);
+	await testDb.delete(schema.authSession);
+	await testDb.delete(schema.authUser);
 });
 
 afterAll(async () => {

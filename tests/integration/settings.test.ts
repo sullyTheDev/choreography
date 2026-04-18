@@ -6,16 +6,17 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	members,
+	authUser,
+	authAccount,
+	authSession,
 	familyMembers,
 	chores,
 	choreCompletions,
 	prizes,
-	prizeRedemptions,
-	sessions
+	prizeRedemptions
 } from '../../src/lib/server/db/schema.js';
 import { ulid, now } from '../../src/lib/server/db/utils.js';
-import { hashPassword } from '../../src/lib/server/auth.js';
+import { hashPassword, hashPin } from '../../src/lib/server/auth.js';
 import { eq } from 'drizzle-orm';
 
 const getLoad = async () =>
@@ -75,15 +76,24 @@ async function seedFullFamily() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: parentId,
-		displayName: 'Full Parent',
+		name: 'Full Parent',
 		avatarEmoji: '🧑',
 		email: `full-${familyId}@example.com`,
-		passwordHash: await hashPassword('password123'),
-		pin: null,
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `cred_${parentId}`,
+		accountId: `full-${familyId}@example.com`,
+		providerId: 'credential',
+		userId: parentId,
+		password: await hashPassword('password123'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId: parentId,
@@ -91,15 +101,24 @@ async function seedFullFamily() {
 		role: 'admin',
 		joinedAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: memberId,
-		displayName: 'Test Kid',
+		name: 'Test Kid',
 		avatarEmoji: '🧒',
 		email: null,
-		passwordHash: null,
-		pin: 'hashed',
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `pin_${memberId}`,
+		accountId: memberId,
+		providerId: 'pin-auth',
+		userId: memberId,
+		password: await hashPin('1234'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId,
@@ -144,13 +163,13 @@ async function seedFullFamily() {
 		coinCost: 20,
 		redeemedAt: now()
 	});
-	await testDb.insert(sessions).values({
+	await testDb.insert(authSession).values({
 		id: sessionId,
-		familyId,
-		memberId: parentId,
-		memberRole: 'admin',
-		expiresAt: new Date(Date.now() + 86_400_000).toISOString(),
-		createdAt: now()
+		token: `token_${sessionId}`,
+		userId: parentId,
+		expiresAt: new Date(Date.now() + 86_400_000),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 
 	return { familyId, parentId, memberId, choreId, prizeId, sessionId };
@@ -259,7 +278,7 @@ describe('admin/settings — deleteFamily action', () => {
 		const remainingRedemptions = await testDb.select().from(prizeRedemptions).where(eq(prizeRedemptions.familyId, familyId));
 		expect(remainingRedemptions).toHaveLength(0);
 
-		const remainingSessions = await testDb.select().from(sessions).where(eq(sessions.familyId, familyId));
+		const remainingSessions = await testDb.select().from(authSession).where(eq(authSession.userId, parentId));
 		expect(remainingSessions).toHaveLength(0);
 	});
 

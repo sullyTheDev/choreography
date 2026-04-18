@@ -1,7 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { families, members, familyMembers, choreCompletions, prizeRedemptions } from '$lib/server/db/schema.js';
+import { families, authUser, familyMembers, choreCompletions, prizeRedemptions } from '$lib/server/db/schema.js';
 import { familyCode } from '$lib/server/db/utils.js';
 import type { LayoutServerLoad } from './$types.js';
 
@@ -16,10 +16,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 	if (!family) redirect(302, '/login');
 
 	const activeMembers = await db
-		.select({ id: members.id, displayName: members.displayName, avatarEmoji: members.avatarEmoji })
+		.select({ id: authUser.id, displayName: authUser.name, avatarEmoji: authUser.avatarEmoji })
 		.from(familyMembers)
-		.innerJoin(members, eq(familyMembers.memberId, members.id))
-		.where(and(eq(familyMembers.familyId, fid), eq(members.isActive, true)));
+		.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+		.where(and(eq(familyMembers.familyId, fid), eq(authUser.isActive, true)));
 
 	const membersWithBalances = await Promise.all(
 		activeMembers.map(async (member) => {
@@ -46,10 +46,10 @@ export const load: LayoutServerLoad = async ({ locals, url }) => {
 
 	return {
 		user: {
-			id: session.user.id,
-			displayName: session.user.displayName,
+			id: session.memberId,
+			displayName: session.displayName,
 			role: session.memberRole,
-			avatarEmoji: session.user.avatarEmoji
+			avatarEmoji: session.avatarEmoji
 		},
 		family: {
 			id: family.id,
