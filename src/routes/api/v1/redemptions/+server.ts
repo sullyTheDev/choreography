@@ -5,15 +5,13 @@ import { eq, and } from 'drizzle-orm';
 import { apiError, apiOk, requireApiKey, parseJsonBody } from '$lib/server/api-utils.js';
 import { ulid } from 'ulid';
 
-type RedemptionStatus = 'available' | 'pending' | 'fulfilled' | 'dismissed';
-
 export const GET: RequestHandler = async (event) => {
 	try {
 		const apiKey = requireApiKey(event);
 
 		const { searchParams } = new URL(event.request.url);
 		const redemptionId = searchParams.get('id');
-		const status = searchParams.get('status') as RedemptionStatus | null;
+		const status = searchParams.get('status');
 
 		if (redemptionId) {
 			// Get specific redemption
@@ -79,11 +77,9 @@ export const POST: RequestHandler = async (event) => {
 			familyId: apiKey.familyId,
 			memberId: body.memberId,
 			prizeId: body.prizeId,
-			status: 'available' as const,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			fulfilledAt: null,
-			dismissedAt: null
+			status: 'pending',
+			coinCost: 0,
+			redeemedAt: new Date().toISOString()
 		};
 
 		await db.insert(prizeRedemptions).values(redemption);
@@ -108,7 +104,7 @@ export const PUT: RequestHandler = async (event) => {
 		}
 
 		const body = await parseJsonBody<{
-			status?: RedemptionStatus;
+			status?: string;
 		}>(event);
 
 		const [existing] = await db
@@ -125,7 +121,7 @@ export const PUT: RequestHandler = async (event) => {
 			return apiError(400, 'status is required', 'INVALID_INPUT');
 		}
 
-		const validStatuses: RedemptionStatus[] = ['available', 'pending', 'fulfilled', 'dismissed'];
+			const validStatuses = ['available', 'pending', 'fulfilled', 'dismissed'];
 		if (!validStatuses.includes(body.status)) {
 			return apiError(400, `Invalid status. Must be one of: ${validStatuses.join(', ')}`, 'INVALID_INPUT');
 		}
@@ -134,9 +130,7 @@ export const PUT: RequestHandler = async (event) => {
 		const updated = {
 			...existing,
 			status: body.status,
-			updatedAt: now,
-			fulfilledAt: body.status === 'fulfilled' ? now : existing.fulfilledAt,
-			dismissedAt: body.status === 'dismissed' ? now : existing.dismissedAt
+			redeemedAt: now.toISOString()
 		};
 
 		await db.update(prizeRedemptions).set(updated).where(eq(prizeRedemptions.id, redemptionId));

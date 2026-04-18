@@ -24,16 +24,7 @@ export const GET: RequestHandler = async (event) => {
 				return apiError(404, 'Prize not found', 'NOT_FOUND');
 			}
 
-			// Get assignments for this prize
-			const assignments = await db
-				.select()
-				.from(prizeAssignments)
-				.where(eq(prizeAssignments.prizeId, prizeId));
-
-			return apiOk({
-				...prize,
-				assignments
-			});
+			return apiOk(prize);
 		}
 
 		// List all prizes for family
@@ -52,29 +43,29 @@ export const POST: RequestHandler = async (event) => {
 		const apiKey = requireApiKey(event);
 
 		const body = await parseJsonBody<{
-			name: string;
+			title: string;
 			description?: string;
 			emoji?: string;
-			costPoints: number;
+			coinCost: number;
 		}>(event);
 
-		if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
-			return apiError(400, 'Prize name is required', 'INVALID_INPUT');
+		if (!body.title || typeof body.title !== 'string' || !body.title.trim()) {
+			return apiError(400, 'Prize title is required', 'INVALID_INPUT');
 		}
 
-		if (typeof body.costPoints !== 'number' || body.costPoints <= 0) {
-			return apiError(400, 'Prize costPoints must be a positive number', 'INVALID_INPUT');
+		if (typeof body.coinCost !== 'number' || body.coinCost <= 0) {
+			return apiError(400, 'Coin cost must be a positive number', 'INVALID_INPUT');
 		}
 
 		const prize = {
 			id: ulid(),
 			familyId: apiKey.familyId,
-			name: body.name.trim(),
-			description: body.description?.trim() ?? null,
+			title: body.title.trim(),
+			description: body.description?.trim() ?? '',
 			emoji: body.emoji ?? 'πŸŽ',
-			costPoints: body.costPoints,
-			createdAt: new Date(),
-			updatedAt: new Date()
+			coinCost: body.coinCost,
+			isActive: true,
+			createdAt: new Date().toISOString()
 		};
 
 		await db.insert(prizes).values(prize);
@@ -99,10 +90,11 @@ export const PUT: RequestHandler = async (event) => {
 		}
 
 		const body = await parseJsonBody<{
-			name?: string;
+			title?: string;
 			description?: string;
 			emoji?: string;
-			costPoints?: number;
+			coinCost?: number;
+			isActive?: boolean;
 		}>(event);
 
 		const [existing] = await db.select().from(prizes).where(eq(prizes.id, prizeId)).limit(1);
@@ -113,11 +105,11 @@ export const PUT: RequestHandler = async (event) => {
 
 		const updated = {
 			...existing,
-			name: body.name?.trim() ?? existing.name,
-			description: body.description !== undefined ? body.description?.trim() ?? null : existing.description,
+			title: body.title?.trim() ?? existing.title,
+			description: body.description !== undefined ? body.description?.trim() ?? '' : existing.description,
 			emoji: body.emoji ?? existing.emoji,
-			costPoints: body.costPoints ?? existing.costPoints,
-			updatedAt: new Date()
+			coinCost: body.coinCost ?? existing.coinCost,
+			isActive: body.isActive !== undefined ? body.isActive : existing.isActive
 		};
 
 		await db.update(prizes).set(updated).where(eq(prizes.id, prizeId));

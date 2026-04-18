@@ -9,7 +9,7 @@ export interface ApiResponse<T> {
 }
 
 export function apiError(status: number, message: string, code?: string) {
-	return json<ApiResponse<never>>(
+	return json(
 		{
 			success: false,
 			error: message,
@@ -20,7 +20,7 @@ export function apiError(status: number, message: string, code?: string) {
 }
 
 export function apiOk<T>(data: T, status = 200) {
-	return json<ApiResponse<T>>(
+	return json(
 		{
 			success: true,
 			data

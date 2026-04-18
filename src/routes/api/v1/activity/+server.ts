@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { choreCompletions, chores, prizeRedemptions, prizes, familyMembers } from '$lib/server/db/schema.js';
-import { eq, union, sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { apiError, apiOk, requireApiKey } from '$lib/server/api-utils.js';
 
 export const GET: RequestHandler = async (event) => {
@@ -18,12 +18,12 @@ export const GET: RequestHandler = async (event) => {
 				type: sql<'completion'>`'completion'`,
 				id: choreCompletions.id,
 				choreId: choreCompletions.choreId,
-				choreName: chores.name,
+				choreTitle: chores.title,
 				choreEmoji: chores.emoji,
 				memberId: choreCompletions.memberId,
-				memberDisplayName: familyMembers.displayName,
+				memberRole: familyMembers.role,
 				timestamp: choreCompletions.completedAt,
-				pointsEarned: choreCompletions.pointsEarned
+				coinsAwarded: choreCompletions.coinsAwarded
 			})
 			.from(choreCompletions)
 			.innerJoin(chores, eq(chores.id, choreCompletions.choreId))
@@ -36,11 +36,11 @@ export const GET: RequestHandler = async (event) => {
 				type: sql<'redemption'>`'redemption'`,
 				id: prizeRedemptions.id,
 				prizeId: prizeRedemptions.prizeId,
-				prizeName: prizes.name,
+				prizeTitle: prizes.title,
 				prizeEmoji: prizes.emoji,
 				memberId: prizeRedemptions.memberId,
-				memberDisplayName: familyMembers.displayName,
-				timestamp: prizeRedemptions.updatedAt,
+				memberRole: familyMembers.role,
+				timestamp: prizeRedemptions.redeemedAt,
 				status: prizeRedemptions.status
 			})
 			.from(prizeRedemptions)

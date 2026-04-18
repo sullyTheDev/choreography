@@ -6,7 +6,7 @@
     "version": "1.0.0",
     "contact": {
       "name": "Choreography Support",
-      "url": "https://github.com/your-org/choreography"
+      "url": "https://github.com/sullyTheDev/choreography"
     },
     "license": {
       "name": "MIT"
@@ -22,6 +22,10 @@
       "description": "Development API (self-signed SSL)"
     }
   ],
+  "externalDocs": {
+    "description": "Source repository",
+    "url": "https://github.com/sullyTheDev/choreography"
+  },
   "components": {
     "securitySchemes": {
       "BearerAuth": {

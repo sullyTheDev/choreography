@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { chores, choreAssignments } from '$lib/server/db/schema.js';
 import { eq } from 'drizzle-orm';
-import { apiError, apiOk, requireApiKey, validateRequestMethod, parseJsonBody } from '$lib/server/api-utils.js';
+import { apiError, apiOk, requireApiKey, parseJsonBody } from '$lib/server/api-utils.js';
 import { ulid } from 'ulid';
 
 export const GET: RequestHandler = async (event) => {
@@ -24,16 +24,7 @@ export const GET: RequestHandler = async (event) => {
 				return apiError(404, 'Chore not found', 'NOT_FOUND');
 			}
 
-			// Get assignments for this chore
-			const assignments = await db
-				.select()
-				.from(choreAssignments)
-				.where(eq(choreAssignments.choreId, choreId));
-
-			return apiOk({
-				...chore,
-				assignments
-			});
+			return apiOk(chore);
 		}
 
 		// List all chores for family
@@ -51,20 +42,36 @@ export const POST: RequestHandler = async (event) => {
 	try {
 		const apiKey = requireApiKey(event);
 
-		const body = await parseJsonBody<{ name: string; description?: string; emoji?: string }>(event);
+		const body = await parseJsonBody<{
+			title: string;
+			description?: string;
+			emoji?: string;
+			frequency: 'daily' | 'weekly';
+			coinValue: number;
+		}>(event);
 
-		if (!body.name || typeof body.name !== 'string' || !body.name.trim()) {
-			return apiError(400, 'Chore name is required', 'INVALID_INPUT');
+		if (!body.title || typeof body.title !== 'string' || !body.title.trim()) {
+			return apiError(400, 'Chore title is required', 'INVALID_INPUT');
+		}
+
+		if (!body.frequency || !['daily', 'weekly'].includes(body.frequency)) {
+			return apiError(400, 'Frequency must be "daily" or "weekly"', 'INVALID_INPUT');
+		}
+
+		if (typeof body.coinValue !== 'number' || body.coinValue <= 0) {
+			return apiError(400, 'Coin value must be a positive number', 'INVALID_INPUT');
 		}
 
 		const chore = {
 			id: ulid(),
 			familyId: apiKey.familyId,
-			name: body.name.trim(),
-			description: body.description?.trim() ?? null,
-			emoji: body.emoji ?? 'πŸŽ―',
-			createdAt: new Date(),
-			updatedAt: new Date()
+			title: body.title.trim(),
+			description: body.description?.trim() ?? '',
+			emoji: body.emoji ?? '🧹',
+			frequency: body.frequency,
+			coinValue: body.coinValue,
+			isActive: true,
+			createdAt: new Date().toISOString()
 		};
 
 		await db.insert(chores).values(chore);
@@ -88,7 +95,14 @@ export const PUT: RequestHandler = async (event) => {
 			return apiError(400, 'Chore ID is required', 'INVALID_INPUT');
 		}
 
-		const body = await parseJsonBody<{ name?: string; description?: string; emoji?: string }>(event);
+		const body = await parseJsonBody<{
+			title?: string;
+			description?: string;
+			emoji?: string;
+			frequency?: 'daily' | 'weekly';
+			coinValue?: number;
+			isActive?: boolean;
+		}>(event);
 
 		const [existing] = await db.select().from(chores).where(eq(chores.id, choreId)).limit(1);
 
@@ -98,10 +112,12 @@ export const PUT: RequestHandler = async (event) => {
 
 		const updated = {
 			...existing,
-			name: body.name?.trim() ?? existing.name,
-			description: body.description !== undefined ? body.description?.trim() ?? null : existing.description,
+			title: body.title?.trim() ?? existing.title,
+			description: body.description !== undefined ? body.description?.trim() ?? '' : existing.description,
 			emoji: body.emoji ?? existing.emoji,
-			updatedAt: new Date()
+			frequency: body.frequency ?? existing.frequency,
+			coinValue: body.coinValue ?? existing.coinValue,
+			isActive: body.isActive !== undefined ? body.isActive : existing.isActive
 		};
 
 		await db.update(chores).set(updated).where(eq(chores.id, choreId));

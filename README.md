@@ -96,6 +96,27 @@ The app is available at [http://localhost:3000](http://localhost:3000). The SQLi
 docker build -t choreography .
 ```
 
+### Unraid Quick Config
+
+If you run this container through Unraid Community Applications, set these first:
+
+- Required:
+  - `BETTER_AUTH_SECRET` (32+ characters)
+  - `ORIGIN` (for example `http://tower.local:3000` or your reverse-proxy URL)
+- Usually keep defaults:
+  - `DATABASE_URL=file:./data/choreography.db`
+  - `AUTH_MODE=local`
+  - `LOG_LEVEL=info`
+  - `PUID=99`, `PGID=100` (typical Unraid defaults)
+- Only for SSO/OIDC:
+  - `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`
+  - optional: `OIDC_ACCOUNT_CLAIM`, `OIDC_ISSUER_LABEL`, `OIDC_ZERO_MATCH_POLICY`
+
+The included Unraid template file (`unraid/choreography.xml`) maps:
+- host path to `/app/data`
+- host port to container `3000`
+- all supported runtime environment variables
+
 ## Database
 
 Migrations are SQL files managed by [Drizzle Kit](https://orm.drizzle.team/kit-docs/overview) and stored in the `drizzle/` folder. They are applied in order to bring the SQLite schema up to date.
@@ -108,9 +129,9 @@ Run migrations manually with `npm run db:migrate` before starting the dev server
 **Docker / production**
 Migrations run automatically at container startup — before the HTTP server begins accepting requests. The `CMD` in the Dockerfile is:
 ```
-node --import tsx/esm src/migrate.ts && node build/index.js
+node build/migrate.mjs && node build/index.js
 ```
-`src/migrate.ts` connects to the database, applies any pending migrations from `drizzle/`, then exits. Only if that succeeds does `node build/index.js` start. This means:
+`src/migrate.mjs` connects to the database, applies any pending migrations from `drizzle/`, then exits. Only if that succeeds does `node build/index.js` start. This means:
 - A failed migration stops the container immediately (visible in `docker compose logs`) rather than silently serving 500 errors.
 - There is no race condition — the server never starts with an unmigrated schema.
 - The `drizzle/` folder is baked into the production image during the Docker build so the migration files are always available.
@@ -124,7 +145,7 @@ npm run db:generate
 # Apply pending migrations (local dev)
 npm run db:migrate
 
-# Apply pending migrations (production-like, uses tsx directly)
+# Apply pending migrations (production-like)
 npm run db:migrate:prod
 
 # Seed the database with demo data (dev only)

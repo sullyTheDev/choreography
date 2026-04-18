@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types.js';
 import { db } from '$lib/server/db/index.js';
 import { choreCompletions, chores, familyMembers } from '$lib/server/db/schema.js';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { apiError, apiOk, requireApiKey } from '$lib/server/api-utils.js';
 
 export const GET: RequestHandler = async (event) => {
@@ -17,12 +17,12 @@ export const GET: RequestHandler = async (event) => {
 			.select({
 				id: choreCompletions.id,
 				choreId: choreCompletions.choreId,
-				choreName: chores.name,
+				choreTitle: chores.title,
 				choreEmoji: chores.emoji,
 				memberId: choreCompletions.memberId,
-				memberDisplayName: familyMembers.displayName,
+				memberRole: familyMembers.role,
 				completedAt: choreCompletions.completedAt,
-				pointsEarned: choreCompletions.pointsEarned
+				coinsAwarded: choreCompletions.coinsAwarded
 			})
 			.from(choreCompletions)
 			.innerJoin(chores, eq(chores.id, choreCompletions.choreId))
@@ -33,7 +33,7 @@ export const GET: RequestHandler = async (event) => {
 			.offset(offset);
 
 		const [{ total }] = await db
-			.select({ total: choreCompletions.id })
+			.select({ total: sql<number>`count(*)` })
 			.from(choreCompletions)
 			.where(eq(choreCompletions.familyId, apiKey.familyId));
 
@@ -42,7 +42,7 @@ export const GET: RequestHandler = async (event) => {
 			pagination: {
 				limit,
 				offset,
-				total: completions.length,
+				total: total || 0,
 				hasMore: offset + completions.length < (total || 0)
 			}
 		});

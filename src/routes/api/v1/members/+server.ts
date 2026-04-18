@@ -28,7 +28,7 @@ export const GET: RequestHandler = async (event) => {
 
 			return apiOk({
 				...member,
-				user: user ? { id: user.id, email: user.email, displayName: user.displayName } : null
+				user: user ? { id: user.id, email: user.email, name: user.name } : null
 			});
 		}
 
@@ -44,7 +44,7 @@ export const GET: RequestHandler = async (event) => {
 				const [user] = await db.select().from(authUser).where(eq(authUser.id, member.memberId)).limit(1);
 				return {
 					...member,
-					user: user ? { id: user.id, email: user.email, displayName: user.displayName } : null
+					user: user ? { id: user.id, email: user.email, name: user.name } : null
 				};
 			})
 		);
