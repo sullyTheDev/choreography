@@ -35,9 +35,15 @@ npm test; npm run lint
 TypeScript 5.x / Node.js 20 LTS: Follow standard conventions
 
 ## Recent Changes
+<<<<<<< HEAD
 - 004-add-redemption-dashboard: Added TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Drizzle ORM, `@skeletonlabs/skeleton-svelte` v4, Tailwind CSS v4, `@lucide/svelte`, `better-auth`
 - 004-add-redemption-dashboard: Added TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Drizzle ORM, `@skeletonlabs/skeleton-svelte` v4, Tailwind CSS v4, `@lucide/svelte`
 - 003-family-unification: Added TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Drizzle ORM, @skeletonlabs/skeleton-svelte v4, Tailwind CSS v4
+=======
+- 004-add-redemption-dashboard: Added TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Drizzle ORM, `@skeletonlabs/skeleton-svelte` v4, Tailwind CSS v4, `@lucide/svelte`
+- 003-family-unification: Added TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Drizzle ORM, @skeletonlabs/skeleton-svelte v4, Tailwind CSS v4
+- 002-skeleton-ui-migration: Added TypeScript 5.x / Node.js 20 LTS + SvelteKit 2, Svelte 5 Runes, Tailwind CSS v4, @skeletonlabs/skeleton v4, @skeletonlabs/skeleton-svelte v4, @tailwindcss/forms, @lucide/svelte
+>>>>>>> 0387394a03b5892b571414cd8d2e86e1b7297175
 
 
 <!-- MANUAL ADDITIONS START -->
