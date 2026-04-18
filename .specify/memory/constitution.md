@@ -55,6 +55,7 @@ Do NOT use Flowbite, Flowbite-Svelte, or DaisyUI alongside Skeleton. These libra
 ## Additional Technical and Product Constraints
 
 - Default architecture is a single SvelteKit application unless a more complex topology is justified.
+- Authentication and session management MUST use `better-auth` as the canonical engine; custom in-house session managers are not permitted for core auth flows.
 - The project is open source and must remain friendly to contributors.
 - Self-hosting is a first-class concern for all core features.
 - Optional hosted-only enhancements are allowed, but must remain clearly optional and not degrade the self-hosted experience.
@@ -80,4 +81,4 @@ This is the initial constitution for the Choreography project. Amendments are ap
 
 This constitution supersedes all other practices. All PRs and reviews must verify compliance with these principles and gates.
 
-**Version**: 1.2.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-13
+**Version**: 1.3.0 | **Ratified**: 2026-04-08 | **Last Amended**: 2026-04-17

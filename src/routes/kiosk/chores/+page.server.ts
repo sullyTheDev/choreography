@@ -2,7 +2,7 @@ import type { Actions, PageServerLoad } from './$types.js';
 import { fail, error } from '@sveltejs/kit';
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { chores, choreCompletions, members, familyMembers, choreAssignments, activityEvents } from '$lib/server/db/schema.js';
+import { chores, choreCompletions, authUser, familyMembers, choreAssignments, activityEvents } from '$lib/server/db/schema.js';
 import { ulid, now, getPeriodKey } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
 
@@ -84,10 +84,10 @@ export const actions: Actions = {
 		if (!memberId) return fail(400, { error: 'Member ID is required' });
 
 		const [targetMember] = await db
-			.select({ id: members.id })
+			.select({ id: authUser.id })
 			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
-			.where(and(eq(familyMembers.familyId, session.familyId), eq(familyMembers.memberId, memberId), eq(members.isActive, true)))
+			.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
+			.where(and(eq(familyMembers.familyId, session.familyId), eq(familyMembers.memberId, memberId), eq(authUser.isActive, true)))
 			.limit(1);
 
 		if (!targetMember) return fail(403, { error: 'Invalid member for this family' });

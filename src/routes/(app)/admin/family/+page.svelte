@@ -1,18 +1,20 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import Icon from '@iconify/svelte';
-	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { Dialog, Portal, Toast, createToaster } from '@skeletonlabs/skeleton-svelte';
 	import { AVATAR_EMOJI_OPTIONS } from '$lib/icons';
 	import CoinBadge from '$lib/components/CoinBadge.svelte';
 	import type { PageData } from './$types.js';
 
 	let { data }: { data: PageData } = $props();
 	let editingId = $state<string | null>(null);
+	let editingRole = $state<'admin' | 'member'>('member');
 	let showCreate = $state(false);
 	let createRole = $state<'admin' | 'member'>('member');
 	let showWelcomeDialog = $state(false);
 	$effect(() => { showWelcomeDialog = data.newFamily ?? false; });
 	let copied = $state(false);
+	const toaster = createToaster();
 
 	function hasAvatarOption(value: string): boolean {
 		return AVATAR_EMOJI_OPTIONS.some((option) => option.value === value);
@@ -115,15 +117,39 @@
 					</div>
 						<div class="flex items-center gap-2">
 
-						<button class="btn preset-tonal-primary" aria-label="Edit {member.displayName}" onclick={() => (editingId = editingId === member.id ? null : member.id)}><Icon icon="material-symbols:edit" class="h-5 w-5" /></button>
-						<form method="POST" action="?/deactivate" use:enhance>
+						<button class="btn preset-tonal-primary" aria-label="Edit {member.displayName}" onclick={() => {
+						if (editingId === member.id) {
+							editingId = null;
+						} else {
+							editingId = member.id;
+							editingRole = member.role as 'admin' | 'member';
+						}
+					}}><Icon icon="material-symbols:edit" class="h-5 w-5" /></button>
+						<form method="POST" action="?/deactivate" use:enhance={() => {
+							return async ({ result, update }) => {
+								await update();
+								if (result.type === 'failure' && result.data?.error) {
+									toaster.error({ title: 'Cannot deactivate', description: String(result.data.error) });
+								}
+							};
+						}}>
 							<input type="hidden" name="id" value={member.id} />
 							<button class="btn preset-tonal-error" aria-label="Deactivate {member.displayName}" disabled={!member.isActive}><Icon icon="material-symbols:person-off" class="h-5 w-5" /></button>
 							</form>
 						</div>
 					</div>
 					{#if editingId === member.id}
-						<form method="POST" action="?/update" use:enhance class="grid md:grid-cols-2 gap-3 border-t pt-3">
+						<form method="POST" action="?/update" use:enhance={() => {
+							return async ({ result, update }) => {
+								await update();
+								if (result.type === 'failure' && result.data?.error) {
+									toaster.error({ title: 'Cannot save', description: String(result.data.error) });
+								} else if (result.type !== 'failure') {
+									editingId = null;
+									toaster.success({ title: 'Member updated', description: 'Changes saved successfully.' });
+								}
+							};
+					}} class="grid md:grid-cols-2 gap-3 border-t pt-3">
 							<input type="hidden" name="id" value={member.id} />
 							<label class="label">
 								<span>Display name</span>
@@ -142,11 +168,12 @@
 							</label>
 							<label class="label">
 								<span>Role</span>
-								<select class="select" name="role" value={member.role}>
+								<select class="select" name="role" bind:value={editingRole}>
 									<option value="admin">Admin</option>
 									<option value="member">Member</option>
 								</select>
 							</label>
+							{#if editingRole === 'admin'}
 							<label class="label">
 								<span>Email <span class="text-xs text-surface-500 font-normal">(admin only)</span></span>
 								<input class="input" name="email" value={member.email ?? ''} />
@@ -155,9 +182,10 @@
 								<span>Password <span class="text-xs text-surface-500 font-normal">(admin only, leave blank to keep)</span></span>
 								<input class="input" name="password" type="password" />
 							</label>
+							{/if}
 							<label class="label">
 								<span>PIN <span class="text-xs text-surface-500 font-normal">(4-6 digits, leave blank to keep)</span></span>
-								<input class="input" name="pin" type="password" inputmode="numeric" pattern="[0-9][0-9][0-9][0-9][0-9]?[0-9]?" maxlength="6" placeholder="leave blank to keep" />
+								<input class="input" name="pin" type="password" inputmode="numeric" pattern="[0-9][0-9][0-9][0-9][0-9]?[0-9]?" maxlength="6" />
 								<p class="text-xs text-surface-500 flex items-center gap-1 mt-0.5">
 									<Icon icon="noto:television" class="h-3 w-3 shrink-0" />
 									Used for quick unlock in <strong>Kiosk mode</strong>
@@ -225,3 +253,18 @@
 		</Dialog.Positioner>
 	</Portal>
 </Dialog>
+
+<Toast.Group {toaster}>
+	{#snippet children(toast)}
+		<Toast
+			{toast}
+			class="card shadow-lg p-4 flex gap-3 items-start {toast.type === 'error' ? 'preset-filled-error-500' : 'preset-filled-success-500'}"
+		>
+			<Toast.Message>
+				<Toast.Title class="font-semibold">{toast.title}</Toast.Title>
+				<Toast.Description>{toast.description}</Toast.Description>
+			</Toast.Message>
+			<Toast.CloseTrigger class="btn btn-icon btn-sm ml-auto">✕</Toast.CloseTrigger>
+		</Toast>
+	{/snippet}
+</Toast.Group>

@@ -1,5 +1,67 @@
 import { sqliteTable, text, integer, uniqueIndex, index, primaryKey } from 'drizzle-orm/sqlite-core';
 
+// ── Better Auth tables ─────────────────────────────────────────────────────
+// These tables are managed by the better-auth engine.
+// SQL table names follow better-auth conventions: user / session / account / verification.
+// They are intentionally distinct from the legacy `sessions` table.
+
+export const authUser = sqliteTable('user', {
+	id: text('id').primaryKey(),
+	name: text('name').notNull(),
+	email: text('email'),
+	emailVerified: integer('email_verified', { mode: 'boolean' }).notNull().default(false),
+	image: text('image'),
+	avatarEmoji: text('avatar_emoji').notNull().default('👤'),
+	isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+});
+
+export const authSession = sqliteTable('session', {
+	id: text('id').primaryKey(),
+	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+	token: text('token').notNull().unique(),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull(),
+	ipAddress: text('ip_address'),
+	userAgent: text('user_agent'),
+	userId: text('user_id')
+		.notNull()
+		.references(() => authUser.id, { onDelete: 'cascade' })
+});
+
+export const authAccount = sqliteTable('account', {
+	id: text('id').primaryKey(),
+	accountId: text('account_id').notNull(),
+	providerId: text('provider_id').notNull(),
+	userId: text('user_id')
+		.notNull()
+		.references(() => authUser.id, { onDelete: 'cascade' }),
+	accessToken: text('access_token'),
+	refreshToken: text('refresh_token'),
+	idToken: text('id_token'),
+	accessTokenExpiresAt: integer('access_token_expires_at', { mode: 'timestamp' }),
+	refreshTokenExpiresAt: integer('refresh_token_expires_at', { mode: 'timestamp' }),
+	scope: text('scope'),
+	password: text('password'),
+	createdAt: integer('created_at', { mode: 'timestamp' }).notNull(),
+	updatedAt: integer('updated_at', { mode: 'timestamp' }).notNull()
+},
+(table) => [
+	uniqueIndex('uq_account_provider').on(table.providerId, table.accountId)
+]);
+
+export const authVerification = sqliteTable('verification', {
+	id: text('id').primaryKey(),
+	identifier: text('identifier').notNull(),
+	value: text('value').notNull(),
+	expiresAt: integer('expires_at', { mode: 'timestamp' }).notNull(),
+	createdAt: integer('created_at', { mode: 'timestamp' }),
+	updatedAt: integer('updated_at', { mode: 'timestamp' })
+});
+
+// ── End Better Auth tables ─────────────────────────────────────────────────
+
 export const families = sqliteTable('families', {
 	id: text('id').primaryKey(), // ULID
 	name: text('name').notNull(),
@@ -7,27 +69,12 @@ export const families = sqliteTable('families', {
 	createdAt: text('created_at').notNull()
 });
 
-export const members = sqliteTable(
-	'members',
-	{
-		id: text('id').primaryKey(),
-		displayName: text('display_name').notNull(),
-		avatarEmoji: text('avatar_emoji').notNull().default('👤'),
-		email: text('email').unique(),
-		passwordHash: text('password_hash'),
-		pin: text('pin'),
-		isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
-		createdAt: text('created_at').notNull()
-	},
-	(table) => [index('idx_member_display_name').on(table.displayName), index('idx_member_email').on(table.email)]
-);
-
 export const familyMembers = sqliteTable(
 	'family_members',
 	{
 		memberId: text('member_id')
 			.notNull()
-			.references(() => members.id),
+			.references(() => authUser.id),
 		familyId: text('family_id')
 			.notNull()
 			.references(() => families.id),
@@ -67,7 +114,7 @@ export const choreCompletions = sqliteTable(
 			.references(() => chores.id),
 		memberId: text('member_id')
 			.notNull()
-			.references(() => members.id),
+			.references(() => authUser.id),
 		familyId: text('family_id')
 			.notNull()
 			.references(() => families.id),
@@ -107,7 +154,7 @@ export const choreAssignments = sqliteTable(
 			.references(() => chores.id),
 		memberId: text('member_id')
 			.notNull()
-			.references(() => members.id)
+			.references(() => authUser.id)
 	},
 	(table) => [
 		primaryKey({ columns: [table.choreId, table.memberId] }),
@@ -123,7 +170,7 @@ export const prizeAssignments = sqliteTable(
 			.references(() => prizes.id),
 		memberId: text('member_id')
 			.notNull()
-			.references(() => members.id)
+			.references(() => authUser.id)
 	},
 	(table) => [
 		primaryKey({ columns: [table.prizeId, table.memberId] }),
@@ -140,7 +187,7 @@ export const prizeRedemptions = sqliteTable(
 			.references(() => prizes.id),
 		memberId: text('member_id')
 			.notNull()
-			.references(() => members.id),
+			.references(() => authUser.id),
 		familyId: text('family_id')
 			.notNull()
 			.references(() => families.id),
@@ -161,8 +208,8 @@ export const activityEvents = sqliteTable(
 		familyId: text('family_id')
 			.notNull()
 			.references(() => families.id),
-		actorMemberId: text('actor_member_id').references(() => members.id),
-		subjectMemberId: text('subject_member_id').references(() => members.id),
+		actorMemberId: text('actor_member_id').references(() => authUser.id),
+		subjectMemberId: text('subject_member_id').references(() => authUser.id),
 		eventType: text('event_type').notNull(),
 		entityType: text('entity_type'),
 		entityId: text('entity_id'),
@@ -178,19 +225,4 @@ export const activityEvents = sqliteTable(
 	]
 );
 
-export const sessions = sqliteTable(
-	'sessions',
-	{
-		id: text('id').primaryKey(), // crypto.randomUUID()
-		familyId: text('family_id')
-			.notNull()
-			.references(() => families.id),
-		memberId: text('member_id')
-			.notNull()
-			.references(() => members.id),
-		memberRole: text('member_role', { enum: ['admin', 'member'] }).notNull(),
-		expiresAt: text('expires_at').notNull(),
-		createdAt: text('created_at').notNull()
-	},
-	(table) => [index('idx_session_expires').on(table.expiresAt)]
-);
+

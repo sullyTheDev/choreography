@@ -8,7 +8,7 @@ import {
 	prizeRedemptions,
 	activityEvents,
 	choreCompletions,
-	members,
+	authUser,
 	familyMembers
 } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
@@ -91,14 +91,14 @@ export const actions: Actions = {
 			session.memberRole === 'member' ? session.memberId : requestedMemberId || session.memberId;
 
 		const [selectedMember] = await db
-			.select({ id: members.id })
-			.from(familyMembers)
-			.innerJoin(members, eq(familyMembers.memberId, members.id))
+				.select({ id: authUser.id })
+				.from(familyMembers)
+				.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
 			.where(
 				and(
 					eq(familyMembers.familyId, session.familyId),
 					eq(familyMembers.memberId, effectiveMemberId),
-					eq(members.isActive, true)
+						eq(authUser.isActive, true)
 				)
 			)
 			.limit(1);

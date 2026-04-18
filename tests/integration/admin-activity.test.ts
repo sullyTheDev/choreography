@@ -6,7 +6,8 @@ import { describe, it, expect } from 'vitest';
 import { testDb } from './setup.js';
 import {
 	families,
-	members,
+	authUser,
+	authAccount,
 	familyMembers,
 	chores,
 	prizes,
@@ -14,7 +15,7 @@ import {
 	prizeRedemptions
 } from '../../src/lib/server/db/schema.js';
 import { ulid, now, getPeriodKey } from '../../src/lib/server/db/utils.js';
-import { hashPassword } from '../../src/lib/server/auth.js';
+import { hashPassword, hashPin } from '../../src/lib/server/auth.js';
 
 const getLoad = async () =>
 	(await import('../../src/routes/(app)/admin/activity/+page.server.js')).load;
@@ -65,15 +66,24 @@ async function seedActivityData() {
 		leaderboardResetDay: 1,
 		createdAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: parentId,
-		displayName: 'Test Parent',
+		name: 'Test Parent',
 		avatarEmoji: '🧑',
 		email: `parent-${familyId}@example.com`,
-		passwordHash: await hashPassword('password123'),
-		pin: null,
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `cred_${parentId}`,
+		accountId: `parent-${familyId}@example.com`,
+		providerId: 'credential',
+		userId: parentId,
+		password: await hashPassword('password123'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId: parentId,
@@ -81,15 +91,24 @@ async function seedActivityData() {
 		role: 'admin',
 		joinedAt: now()
 	});
-	await testDb.insert(members).values({
+	await testDb.insert(authUser).values({
 		id: memberId,
-		displayName: 'Emma',
+		name: 'Emma',
 		avatarEmoji: '👧',
 		email: null,
-		passwordHash: null,
-		pin: 'hashed',
+		emailVerified: false,
 		isActive: true,
-		createdAt: now()
+		createdAt: new Date(),
+		updatedAt: new Date()
+	});
+	await testDb.insert(authAccount).values({
+		id: `pin_${memberId}`,
+		accountId: memberId,
+		providerId: 'pin-auth',
+		userId: memberId,
+		password: await hashPin('1234'),
+		createdAt: new Date(),
+		updatedAt: new Date()
 	});
 	await testDb.insert(familyMembers).values({
 		memberId,

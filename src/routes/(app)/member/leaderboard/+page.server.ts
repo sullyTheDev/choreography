@@ -2,7 +2,7 @@ import type { PageServerLoad } from './$types.js';
 import { error } from '@sveltejs/kit';
 import { eq, and, gte, lte, sum, inArray } from 'drizzle-orm';
 import { db } from '$lib/server/db/index.js';
-import { members, familyMembers, choreCompletions } from '$lib/server/db/schema.js';
+import { authUser, familyMembers, choreCompletions } from '$lib/server/db/schema.js';
 import { getWeeklyPeriod } from '$lib/server/db/utils.js';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
@@ -16,16 +16,16 @@ export const load: PageServerLoad = async ({ locals, parent }) => {
 
 	const familyMembersList = await db
 		.select({
-			id: members.id,
-			displayName: members.displayName,
-			avatarEmoji: members.avatarEmoji
+			id: authUser.id,
+			displayName: authUser.name,
+			avatarEmoji: authUser.avatarEmoji
 		})
 		.from(familyMembers)
-		.innerJoin(members, eq(familyMembers.memberId, members.id))
+		.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
 		.where(
 			and(
 				eq(familyMembers.familyId, session.familyId),
-				eq(members.isActive, true)
+				eq(authUser.isActive, true)
 			)
 		);
 
