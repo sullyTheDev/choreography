@@ -1,5 +1,8 @@
 # Choreography
 
+[![Publish Docker Image to GHCR](https://github.com/sullyTheDev/choreography/actions/workflows/publish-ghcr.yml/badge.svg)](https://github.com/sullyTheDev/choreography/actions/workflows/publish-ghcr.yml)
+[![Validate Docker Build (PR)](https://github.com/sullyTheDev/choreography/actions/workflows/docker-pr-validate.yml/badge.svg)](https://github.com/sullyTheDev/choreography/actions/workflows/docker-pr-validate.yml)
+
 A family chore management app that makes getting things done fun. Parents manage chores and prizes; kids earn coins by completing chores and spend them in the prize shop. A weekly leaderboard keeps sibling competition friendly.
 
 ## Features
