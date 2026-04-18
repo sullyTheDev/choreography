@@ -65,6 +65,7 @@ export const authVerification = sqliteTable('verification', {
 export const families = sqliteTable('families', {
 	id: text('id').primaryKey(), // ULID
 	name: text('name').notNull(),
+	webhookUrl: text('webhook_url'),
 	leaderboardResetDay: integer('leaderboard_reset_day').notNull().default(1), // 1=Mon..7=Sun
 	createdAt: text('created_at').notNull()
 });

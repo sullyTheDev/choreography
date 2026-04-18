@@ -9,10 +9,12 @@ import {
 	activityEvents,
 	choreCompletions,
 	authUser,
-	familyMembers
+	familyMembers,
+	families
 } from '$lib/server/db/schema.js';
 import { ulid, now } from '$lib/server/db/utils.js';
 import { logger } from '$lib/server/logger.js';
+import { dispatchWebhook } from '$lib/server/webhook.js';
 
 export const load: PageServerLoad = async ({ locals, parent }) => {
 	const { session } = locals;
@@ -81,7 +83,7 @@ export const actions: Actions = {
 		if (!requestedMemberId) return fail(400, { error: 'Member ID is required' });
 
 		const [selectedMember] = await db
-				.select({ id: authUser.id })
+				.select({ id: authUser.id, name: authUser.name })
 				.from(familyMembers)
 				.innerJoin(authUser, eq(familyMembers.memberId, authUser.id))
 			.where(
@@ -152,6 +154,31 @@ export const actions: Actions = {
 			{ redemptionId: id, prizeId, memberId: requestedMemberId, coins: prize.coinCost, status: 'available' },
 			'Prize redeemed (kiosk)'
 		);
+
+		try {
+			const [familyRow] = await db
+				.select({ name: families.name, webhookUrl: families.webhookUrl })
+				.from(families)
+				.where(eq(families.id, session.familyId))
+				.limit(1);
+			if (familyRow?.webhookUrl) {
+				dispatchWebhook(familyRow.webhookUrl, {
+					event: 'prize_purchased',
+					timestamp: occurredAt,
+					family: { id: session.familyId, name: familyRow.name },
+					actor: { id: requestedMemberId, name: selectedMember?.name ?? requestedMemberId },
+					subject: null,
+					chore: null,
+					prize: { id: prizeId, title: prize.title, coinCost: prize.coinCost },
+					coinsAwarded: null,
+					coinsSpent: prize.coinCost,
+					redemptionId: id
+				});
+			}
+		} catch (err) {
+			logger.warn({ err, familyId: session.familyId }, 'Failed to dispatch prize_purchased webhook (kiosk)');
+		}
+
 		return { success: true };
 	}
 };
