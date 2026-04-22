@@ -3,17 +3,20 @@
 [![Publish Docker Image to GHCR](https://github.com/sullyTheDev/choreography/actions/workflows/publish-ghcr.yml/badge.svg)](https://github.com/sullyTheDev/choreography/actions/workflows/publish-ghcr.yml)
 [![Validate Docker Build (PR)](https://github.com/sullyTheDev/choreography/actions/workflows/docker-pr-validate.yml/badge.svg)](https://github.com/sullyTheDev/choreography/actions/workflows/docker-pr-validate.yml)
 
-A family chore management app that makes getting things done fun. Parents manage chores and prizes; kids earn coins by completing chores and spend them in the prize shop. A weekly leaderboard keeps sibling competition friendly.
+A family chore management app that makes getting things done fun. Admins manage chores and prizes; members earn coins by completing chores and spend them in the prize shop. A weekly leaderboard keeps friendly competition alive.
 
 ## Features
 
-- **Parent dashboard** — create and manage chores (daily/weekly, coin reward, emoji icon, optional kid assignment), kids, prizes, and family settings
-- **Kid dashboard** — personalised greeting, remaining-chore count, chore cards with one-tap completion
-- **Prize shop** — kids browse and redeem coins for prizes created by parents
+- **Admin dashboard** — create and manage chores (daily/weekly, coin reward, emoji icon, optional member assignment), family members, prizes, approvals, activity log, settings, and webhook notifications
+- **Member dashboard** — personalised greeting, remaining-chore count, chore cards with one-tap completion
+- **Prize shop** — members browse and redeem coins for prizes; prizes can require admin approval before fulfillment
+- **Approvals queue** — admins review pending prize redemptions and fulfill or dismiss them
+- **Kiosk mode** — TV/shared-screen mode at `/kiosk`; members tap their avatar and enter their PIN to access their chore list without a full login
 - **Leaderboard** — weekly rankings by coins earned across the family
 - **Activity log** — chronological feed of chore completions and prize redemptions
+- **Webhook notifications** — configure a URL to receive HTTP POST events for chore completions, prize purchases, redemptions, fulfillments, and dismissals
 - **Data export** — download all family data as JSON from Settings
-- **PIN-based kid login** — kids sign in with a shared family code + a unique 4–6 digit PIN; no email required
+- **PIN-based member login** — members sign in with a shared family code + a unique 4–6 digit PIN; no email required; admins may also use email/password or SSO
 
 ## Tech Stack
 
@@ -22,7 +25,7 @@ A family chore management app that makes getting things done fun. Parents manage
 | Framework | SvelteKit 2 + Svelte 5 Runes |
 | Language | TypeScript 5 |
 | Database | SQLite via libsql + Drizzle ORM |
-| Auth | better-auth (local email/password · generic OIDC) · bcrypt PINs (kids) |
+| Auth | better-auth (local email/password · generic OIDC) · bcrypt PINs (members) |
 | Logging | pino + pino-pretty |
 | Runtime | Node.js 20 |
 | Container | Docker + Docker Compose |
@@ -43,7 +46,7 @@ npm install
 
 # 2. Copy env and configure
 cp .env.example .env
-# Edit .env — at minimum set SESSION_SECRET to a random 32+ char string
+# Edit .env — at minimum set BETTER_AUTH_SECRET to a random 32+ char string
 
 # 3. Apply database migrations
 npm run db:migrate
@@ -62,7 +65,7 @@ Open [http://localhost:5173](http://localhost:5173).
 | Variable | Default | Description |
 |---|---|---|
 | `DATABASE_URL` | `file:./data/choreography.db` | Path to SQLite database file |
-| `SESSION_SECRET` | *(none)* | **Required.** Random secret for signing session cookies (32+ chars) |
+| `ORIGIN` | `http://localhost:3000` | **Required.** Public URL of your app — used for CSRF protection and auth callbacks |
 | `BETTER_AUTH_SECRET` | *(none)* | **Required.** Secret for better-auth session signing (32+ chars) |
 | `AUTH_MODE` | `local` | Authentication mode: `local`, `oidc`, or `both` |
 | `PORT` | `3000` | Port the production server listens on |
@@ -86,7 +89,7 @@ Open [http://localhost:5173](http://localhost:5173).
 ```bash
 # Copy and configure env
 cp .env.example .env
-# Set a strong SESSION_SECRET in .env
+# Set a strong BETTER_AUTH_SECRET in .env
 
 docker compose up
 ```
@@ -176,26 +179,34 @@ npm run check
 ```
 src/
   lib/
-    components/       # Shared Svelte components (LeaderboardRow, etc.)
+    components/       # Shared Svelte components (ChoreCard, PrizeCard, KioskPinpad, etc.)
     server/
-      auth.ts         # Password/PIN hashing, session management
+      auth.ts         # better-auth configuration
+      api-keys.ts     # API key hashing and validation
+      webhook.ts      # Webhook event dispatch
       db/
         index.ts      # DB client + auto-migrate on startup
-        schema.ts     # Drizzle schema (families, parents, kids, chores, …)
+        schema.ts     # Drizzle schema (families, members, chores, prizes, redemptions, …)
         utils.ts      # ULID generation, family code helpers
   routes/
     (auth)/           # Login + signup pages (no session required)
     (app)/            # Authenticated pages
-      chores/         # Kid chore dashboard
-      prizes/         # Kid prize shop
-      leaderboard/    # Family leaderboard
-      admin/
-        chores/       # Parent chore management
-        kids/         # Parent kid management
-        prizes/       # Parent prize management
+      member/         # Member-facing pages
+        chores/       # Member chore dashboard
+        prizes/       # Member prize shop
+        leaderboard/  # Family leaderboard
+      admin/          # Admin-only pages
+        chores/       # Chore management
+        prizes/       # Prize management
+        family/       # Member management (add, edit, deactivate/reactivate)
+        approvals/    # Pending prize redemption queue
         activity/     # Activity log
-        settings/     # Family settings + data export
+        notifications/# Webhook configuration
+        settings/     # Family settings + data export + API key
+    kiosk/            # Kiosk (TV) mode — tap avatar + PIN to access chores
     api/
+      v1/             # REST API endpoints (chores, prizes, members, redemptions, activity)
+      docs/           # Swagger UI
       export/         # GET /api/export — full JSON data export
 drizzle/              # SQL migration files
 tests/
@@ -205,13 +216,15 @@ tests/
 
 ## How It Works
 
-1. **Sign up** — a parent creates a family account at `/signup`. A unique family code is generated automatically.
-2. **Add kids** — from Admin → Kids, add each child with a display name, avatar emoji, and a 4–6 digit PIN (unique within the family).
-3. **Create chores** — from Admin → Chores, create chores with a coin reward, frequency, and optional kid assignment.
-4. **Create prizes** — from Admin → Prizes, create prizes with a coin cost for kids to redeem.
-5. **Kids log in** — kids go to `/login`, switch to "I'm a Kid", enter the family code (shown in Settings) and their PIN.
-6. **Earn & spend** — kids complete chores to earn coins and redeem prizes to spend them.
-7. **Compete** — the Leaderboard tab shows weekly rankings across the family.
+1. **Sign up** — an admin creates a family account at `/signup`. A unique family code is generated automatically.
+2. **Add members** — from Admin → Family, add each person with a display name, avatar emoji, and a 4–6 digit PIN. Choose the `admin` role for parents/managers or `member` for kids.
+3. **Create chores** — from Admin → Chores, create chores with a coin reward, frequency, and optional member assignment.
+4. **Create prizes** — from Admin → Prizes, create prizes with a coin cost for members to redeem.
+5. **Members log in** — members go to `/login`, switch to "I'm a Member", enter the family code (shown in Settings) and their PIN. Admins can also sign in with email/password.
+6. **Kiosk mode** — navigate to `/kiosk` on a shared screen (e.g. a TV); members tap their avatar and enter their PIN for quick chore access without a full login session.
+7. **Earn & spend** — members complete chores to earn coins and redeem prizes to spend them. Prizes can require admin approval before fulfillment.
+8. **Approve redemptions** — admins review pending requests in Admin → Approvals and choose to fulfill or dismiss each one.
+9. **Compete** — the Leaderboard tab shows weekly rankings across the family.
 
 ## REST API
 
