@@ -1,108 +1,89 @@
-# Contracts: Authentication Interfaces
+# Contracts: Signup / Onboarding / Family-Creation Interfaces
 
 ## Scope
 
-Defines runtime interface expectations for login UX, auth endpoints, session behavior, and failure handling for the better-auth migration.
+Defines contract behavior for decoupled account signup, onboarding routing, and independent family creation after signup.
 
-## 1. Environment Configuration Contract
+## 1. Signup Contract (`/signup`)
 
-### Inputs
+### Request (form POST)
 
-- `AUTH_MODE`: `local` | `oidc` | `both` (default `local`)
-- `OIDC_ISSUER`: URL string
-- `OIDC_ACCOUNT_CLAIM`: claim key string (default `email`)
-- `OIDC_CLIENT_ID`: string
-- `OIDC_CLIENT_SECRET`: string
-- `OIDC_ISSUER_LABEL`: string (default `Single Sign-On`)
-- `OIDC_ZERO_MATCH_POLICY`: `deny` | `provision` (default `deny`)
-- `BETTER_AUTH_SECRET`: 32+ character secret
+- Required inputs:
+  - `email`
+  - `password`
+  - `displayName`
+- Optional inputs:
+  - `avatarEmoji`
+  - `pin` (if current kiosk/member flow still uses it for admin profile)
+- Not accepted in decoupled path:
+  - `familyName` as required field during account creation
 
-### Required combinations
+### Success behavior
 
-- `AUTH_MODE=local`: only `BETTER_AUTH_SECRET` required for auth engine operation.
-- `AUTH_MODE=oidc`: all OIDC vars required.
-- `AUTH_MODE=both`: local remains available if OIDC vars are invalid/missing.
-- `OIDC_ZERO_MATCH_POLICY=deny`: no local match on first OIDC sign-in denies login with guidance.
-- `OIDC_ZERO_MATCH_POLICY=provision`: no local match on first OIDC sign-in provisions auth user/account and allows login.
+- Creates auth user + credential account.
+- Creates authenticated session.
+- Does **not** create `families` or `family_members` records.
+- Redirects to `/onboarding` for first-run family setup.
 
-## 2. Login UI Contract (`/login`)
+### Error behavior
 
-### Local mode (`AUTH_MODE=local`)
+- Duplicate email -> `409` with user-facing duplicate-account message.
+- Validation failures -> `400` with field-level/summary guidance.
 
-- Must render local form fields (email + password).
-- Must not render OIDC sign-in button.
+## 2. Onboarding Routing Contract
 
-### OIDC mode (`AUTH_MODE=oidc`)
+### Guard rules
 
-- Must render single OIDC sign-in button labeled with `OIDC_ISSUER_LABEL`.
-- Must not render local password form.
-- If OIDC config invalid, sign-in must be blocked with guidance message.
+- If unauthenticated user accesses onboarding-required pages -> redirect to `/login`.
+- If authenticated user has zero memberships -> redirect to `/onboarding` when attempting app routes requiring family context.
+- If authenticated user has at least one membership and visits `/onboarding` root -> redirect to default app destination.
 
-### Both mode (`AUTH_MODE=both`)
+## 3. Family Creation Contract (Onboarding Action/API)
 
-- Must render OIDC button first, then divider, then local form.
-- If OIDC config invalid/missing, OIDC entry is hidden/disabled per UX decision and local form remains usable.
+### Request
 
-## 3. Auth API Route Contract
+- Authenticated user submits:
+  - `familyName` (required)
+  - optional family setup metadata if later needed
 
-### Route
+### Transactional behavior
 
-- `GET/POST /api/auth/[...all]`
+- Create `families` row.
+- Create `family_members` row linking current user as `admin`.
+- Commit atomically (no partial family without membership).
 
-### Behavior
+### Response
 
-- All auth lifecycle traffic (signin/signup/callback/signout/session) is handled by `better-auth` route handler.
-- Existing app routes must rely on resolved auth session state from this single source.
+- Success -> redirect to `/admin/family?new=1` (or equivalent first-admin landing page).
+- Failure -> remain on onboarding with actionable error.
 
-## 4. OIDC Account Linking Contract
+## 4. Session Shape and Compatibility Contract
 
-### Inputs
+- Session identity remains sourced from `better-auth`.
+- Family context fields must be treated as nullable/derivable until membership exists.
+- Any route requiring `familyId` must resolve membership first and redirect if absent.
 
-- OIDC callback payload including configured `OIDC_ACCOUNT_CLAIM`.
+## 5. UI Contract
 
-### Normalization
-
-- Claim comparison for local linking must apply:
-  - trim surrounding whitespace
-  - case-insensitive comparison
-
-### Outcomes
-
-- Exactly one local match: link identity to existing user.
-- Zero local matches: apply `OIDC_ZERO_MATCH_POLICY` (`deny` -> block with guidance, `provision` -> create auth user/account mapping).
-- No claim present: deny login with missing-claim configuration error.
-- Multiple local matches: deny login with admin-action-required error.
-- In all deny cases above: no account creation and no linking side effects.
-
-## 5. Session and Guard Contract
-
-### Session source
-
-- Authenticated session is provided by `better-auth` only.
-- Legacy cookie-token table/session validation logic is removed.
-
-### Route protection
-
-- Authenticated route groups continue to redirect unauthenticated users to `/login`.
-- Admin-only routes continue to enforce role checks.
+- `/signup` presents account-creation-only copy and controls.
+- `/onboarding` presents explicit next step to create/join family.
+- All components remain Skeleton v4 + Tailwind based.
 
 ## 6. Observability Contract
 
-### Required structured log events
+### Required structured events
 
-- `auth_oidc_config_invalid`
-- `auth_oidc_claim_missing`
-- `auth_oidc_link_ambiguous`
+- `onboarding_required`
+- `family_created_from_onboarding`
+- `family_create_failed`
 
-### Required fields (non-secret)
+### Required metadata
 
-- `authMode`
-- `issuer` (if configured)
-- `claimKey`
+- `userId`
 - `path`
-- `requestId` (or equivalent correlation key if available)
-- `reason`
+- `requestId` (or equivalent)
+- `reason` (for failures)
 
 ### Security rules
 
-- Never log client secret, access tokens, refresh tokens, or raw ID tokens.
+- Never log passwords, secrets, or token material.

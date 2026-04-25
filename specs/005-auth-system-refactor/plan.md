@@ -1,36 +1,63 @@
-# Implementation Plan: Authentication System Refactor (Local + Generic OIDC)
+# Implementation Plan: Signup/Family Decoupling + Onboarding Routing
 
-**Branch**: `005-auth-system-refactor` | **Date**: 2026-04-17 | **Spec**: [spec.md](spec.md)
-**Input**: Feature specification from `specs/005-auth-system-refactor/spec.md`
+**Branch**: `copilot/break-out-user-signup-family-creation` | **Date**: 2026-04-25 | **Spec**: `specs/005-auth-system-refactor/spec.md`  
+**Input**: Existing feature context for splitting user signup from family creation and routing newly created users into onboarding.
 
 ## Summary
 
-Replace the in-house password/PIN plus cookie-session engine with `better-auth` as the single authentication layer while preserving self-hosted SvelteKit architecture and existing SQLite/Drizzle database. Deliver three runtime-driven login modes (`local`, `oidc`, `both`), generic OIDC support, deterministic local-account linking for first-time OIDC sign-in, and explicit operator-focused logging for OIDC misconfiguration scenarios.
+Decouple account signup from family creation so users can register independently, create or join a family later, and be routed into onboarding immediately after first account creation/sign-in when no family membership exists. The implementation reuses the current SvelteKit + better-auth + Drizzle stack, introduces onboarding-aware session/route behavior, and preserves existing family workflows after membership is established.
 
 ## Technical Context
 
-**Language/Version**: TypeScript 5.x / Node.js 20 LTS  
-**Primary Dependencies**: SvelteKit 2, Svelte 5 Runes, Drizzle ORM, `@skeletonlabs/skeleton-svelte` v4, Tailwind CSS v4, `@lucide/svelte`, `better-auth`  
-**Storage**: SQLite via Drizzle ORM + libsql (`drizzle-orm/libsql`) using existing `DATABASE_URL`  
-**Testing**: Vitest integration + Playwright e2e + SvelteKit type/lint checks (`npm test`, `npm run test:e2e`, `npm run lint`)  
-**Target Platform**: Self-hosted SvelteKit SSR web app (Node runtime, Docker optional)  
-**Project Type**: Full-stack web application (single SvelteKit project)  
-**Performance Goals**: Maintain login UX completion target from spec (`<=60s` in user tests), keep auth route/server action p95 under 300ms at family-scale workloads  
-**Constraints**: Must fully remove legacy custom auth/session flow, must use generic OIDC only (no vendor SDKs), must keep local fallback behavior in `AUTH_MODE=both` when OIDC is misconfigured, must produce structured DevOps logs for configuration/claim failures, must enforce `OIDC_ZERO_MATCH_POLICY` (`deny` or `provision`, default `deny`), must preserve Skeleton v4-first UI policy  
-**Scale/Scope**: Single-tenant family instances; expected active sessions per family in low hundreds; auth migration applies across all authenticated routes and admin/member role checks
+**Language/Version**: TypeScript 5.x on Node.js 20+ with SvelteKit 2 / Svelte 5  
+**Primary Dependencies**: `@sveltejs/kit`, `better-auth`, `drizzle-orm`, `@libsql/client`, `@skeletonlabs/skeleton(-svelte)`, `pino`  
+**Storage**: SQLite/libsql via Drizzle schema (`user`, `families`, `family_members`, related domain tables)  
+**Testing**: Vitest integration tests + Playwright e2e tests + `svelte-check`  
+**Target Platform**: Self-hosted Linux/containerized Node runtime  
+**Project Type**: Single SvelteKit web application  
+**Performance Goals**: Maintain current interactive UX expectations (auth/onboarding route loads in normal local-dev timings; no added blocking network round-trips beyond existing server actions)  
+**Constraints**: Preserve better-auth as canonical auth engine; preserve self-hostability; keep Skeleton v4 UI compliance; maintain backward compatibility for existing family-backed sessions  
+**Scale/Scope**: Single feature slice across auth/onboarding routes, DB associations, and tests for first-run onboarding + independent family creation flows
 
-## Constitution Check
+## Constitution Check (Pre-Design Gate)
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Family-Centered Product Slices | PASS | Login and account-linking behavior directly supports parent/member family workflows |
-| II. Self-Hostable and Open by Default | PASS | Keeps SvelteKit + SQLite self-host stack; OIDC remains optional and generic |
-| III. Privacy and Parent Control First | PASS | No new analytics/data export paths; identity handling remains first-party and least-data |
-| IV. Test-First, Correct, Accessible Delivery | PASS | Plan includes integration/e2e acceptance coverage for all auth modes and failure scenarios |
-| V. Observable Simplicity | PASS | Consolidates auth into one engine (`better-auth`) and adds explicit structured error logging |
-| VI. Skeleton UI System First | PASS | Login page updates continue to use Skeleton + Tailwind patterns |
+- **I. Family-Centered Product Slices**: PASS — user outcome is clearer account creation and smoother family setup flow.
+- **II. Self-Hostable and Open by Default**: PASS — no hosted dependency added; current runtime/env model remains.
+- **III. Privacy and Parent Control First**: PASS — no new personal-data collection; only existing signup/profile fields.
+- **IV. Test-First, Correct, Accessible Delivery**: PASS (planning) — plan includes integration/e2e updates for decoupled signup/onboarding behavior.
+- **V. Observable Simplicity**: PASS — changes stay in existing app boundaries; structured logging will cover onboarding/family creation failures.
+- **VI. Skeleton UI System First**: PASS — onboarding/signup UI updates remain within Skeleton + Tailwind conventions.
+
+No constitutional violations identified; complexity tracking not required.
+
+## Phase 0: Research Output Summary
+
+Research completed in `research.md` and resolves all planning unknowns:
+- Session semantics when user has no family membership
+- Decoupled signup write-path and transaction boundaries
+- Onboarding routing contract for new users
+- Family creation API/action ownership and idempotency expectations
+- Test strategy for split-signup and post-signup onboarding paths
+
+## Phase 1: Design & Contracts Output Summary
+
+- Data model defined in `data-model.md` for account-first onboarding and family membership lifecycle.
+- Interface contracts defined in `contracts/auth-contracts.md` for signup, onboarding routing, and independent family creation.
+- Operator/developer execution path documented in `quickstart.md`.
+- Agent context refresh executed via `.specify/scripts/powershell/update-agent-context.ps1 -AgentType copilot`.
+
+## Constitution Check (Post-Design Re-Check)
+
+- **I. Family-Centered Product Slices**: PASS — design keeps onboarding and family setup directly tied to family admin workflow.
+- **II. Self-Hostable and Open by Default**: PASS — no external managed service introduced.
+- **III. Privacy and Parent Control First**: PASS — no expansion of data capture or third-party transmission.
+- **IV. Test-First, Correct, Accessible Delivery**: PASS — contracts and quickstart explicitly require integration/e2e and accessibility checks for onboarding paths.
+- **V. Observable Simplicity**: PASS — minimal schema/routing evolution with explicit logging points.
+- **VI. Skeleton UI System First**: PASS — UI contract remains Skeleton-first.
+
+Post-design gates remain clear with no unresolved constitutional risks.
 
 ## Project Structure
 
@@ -44,98 +71,29 @@ specs/005-auth-system-refactor/
 ├── quickstart.md
 ├── contracts/
 │   └── auth-contracts.md
-└── tasks.md                 # Created later by /speckit.tasks
+└── tasks.md
 ```
 
 ### Source Code (repository root)
 
 ```text
 src/
-├── app.d.ts                                     # UPDATE: App.Locals typing for better-auth session/user shape
-├── hooks.server.ts                              # UPDATE: replace legacy validateSession flow with better-auth handler/session loading
 ├── lib/
-│   ├── auth.ts                                  # NEW: betterAuth() server configuration
-│   ├── auth-client.ts                           # NEW: Svelte client auth helper
-│   └── server/
-│       ├── auth.ts                              # REMOVE/REWRITE: legacy hashing/session helpers no longer auth authority
-│       └── db/
-│           ├── index.ts                         # REUSE existing DB connection for better-auth adapter
-│           └── schema.ts                        # UPDATE: add/align users, sessions, accounts (and supporting auth tables)
+│   ├── auth.ts
+│   └── server/db/schema.ts
 ├── routes/
-│   ├── api/
-│   │   └── auth/
-│   │       └── [...all]/+server.ts             # NEW: better-auth route handler
 │   ├── (auth)/
-│   │   └── login/
-│   │       ├── +page.server.ts                 # UPDATE: runtime auth-mode config + error reporting inputs
-│   │       └── +page.svelte                    # UPDATE: mode-aware local/oidc/both UI rendering
-│   └── logout/+page.server.ts                  # UPDATE: sign out via better-auth session API
-
-drizzle/
-├── 00xx_better_auth_refactor.sql                # NEW migration(s): auth table alignment and data backfill/linking support
-└── meta/_journal.json                           # UPDATE: migration journal entry
+│   │   ├── login/
+│   │   └── signup/
+│   ├── (app)/
+│   │   ├── +layout.server.ts
+│   │   └── admin/family/
+│   └── onboarding/            # planned onboarding route entry for no-family users
+└── hooks.server.ts
 
 tests/
 ├── integration/
-│   ├── auth-local.test.ts                       # NEW: local auth behavior
-│   ├── auth-oidc.test.ts                        # NEW: oidc config/claim/linking behavior
-│   └── auth-session-guards.test.ts              # NEW/UPDATED: route guard behavior from better-auth session
 └── e2e/
-    └── login-modes.test.ts                      # NEW: local/oidc/both rendering and fallback behavior
 ```
 
-**Structure Decision**: Keep a single SvelteKit application and replace existing auth internals in place, introducing only `better-auth` server/client configuration modules and a dedicated auth API catch-all route.
-
-## Phase 0: Research
-
-Research output: [research.md](research.md)
-
-Resolved technical decisions:
-
-1. Reuse existing Drizzle/libsql database connection (`src/lib/server/db/index.ts`) as the storage layer for `better-auth`; do not create a second auth database.
-2. Implement `better-auth` as the sole session authority by removing cookie-token validation in `hooks.server.ts` and replacing with `better-auth`-driven session extraction.
-3. Model OIDC account linking as deterministic claim matching after trim + case-fold normalization, with hard-fail behavior for duplicate matches and missing claims as required by spec clarifications.
-4. Support first-time OIDC zero-match behavior via `OIDC_ZERO_MATCH_POLICY`: deny with guidance or provision a new auth user/account mapping.
-5. Handle `AUTH_MODE=both` misconfiguration by suppressing OIDC UI affordance while preserving local sign-in, and emit structured operator logs with actionable fields.
-6. Keep generic OIDC integration only; no provider-specific SDK adapters.
-
-## Phase 1: Design and Contracts
-
-Design outputs:
-
-1. Data model: [data-model.md](data-model.md)
-2. Contracts: [contracts/auth-contracts.md](contracts/auth-contracts.md)
-3. Developer quickstart: [quickstart.md](quickstart.md)
-
-Design highlights:
-
-1. Introduce/align `users`, `sessions`, and `accounts` tables for `better-auth` while preserving existing member/family domain data.
-2. Add explicit migration/backfill path for linking pre-existing local users to new auth records without duplicate account creation.
-3. Define endpoint/UI contracts for mode-driven login rendering, zero-match policy behavior, and auth callbacks.
-4. Specify structured logging contract for OIDC misconfiguration, missing claim, and ambiguous-link failures.
-
-## Phase 2: Implementation Planning Approach
-
-Planned execution slices (for /speckit.tasks generation):
-
-1. Install/configure `better-auth` and wire server/client modules plus auth API route.
-2. Refactor DB schema/migrations for `better-auth` tables and data-linking rules.
-3. Replace legacy hook/session/login/logout flows with `better-auth` session and sign-in flows.
-4. Implement `AUTH_MODE`-driven login UI behavior (`local`, `oidc`, `both`) including misconfiguration fallback and messaging.
-5. Implement OIDC claim extraction, normalization, linking, zero-match policy handling, and failure handling rules from spec clarifications.
-6. Add integration and e2e coverage for auth modes, linking, and error observability.
-
-## Constitution Check (Post-Design Re-check)
-
-| Principle | Status | Notes |
-|-----------|--------|-------|
-| I. Family-Centered Product Slices | PASS | Stories remain independently testable (local, oidc, hybrid/linking) |
-| II. Self-Hostable and Open by Default | PASS | No hosted-only dependency required; OIDC optional |
-| III. Privacy and Parent Control First | PASS | Identity data use remains minimal (issuer + account claim mapping) |
-| IV. Test-First, Correct, Accessible Delivery | PASS | Contracts and quickstart define acceptance-focused test gates |
-| V. Observable Simplicity | PASS | Single auth engine reduces bespoke complexity and adds structured logging hooks |
-| VI. Skeleton UI System First | PASS | Login UX contract uses existing Skeleton/Tailwind components and patterns |
-
-## Complexity Tracking
-
-No constitution violations identified; complexity exemptions not required.
+**Structure Decision**: Keep the existing single-project SvelteKit structure and add onboarding flow behavior in current auth/app route groups, avoiding new services or packages.
