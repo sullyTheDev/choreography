@@ -1,64 +1,47 @@
-# Research: Authentication System Refactor (Local + Generic OIDC)
+# Research: Signup/Family Decoupling and Onboarding Routing
 
-## Decision 1: Use better-auth as the single auth/session engine
+## Decision 1: Make signup account-only (no implicit family creation)
 
-- Decision: Replace custom auth/session logic with `better-auth` as the only authentication authority for sign-in, callback handling, and session lifecycle.
-- Rationale: The current stack spreads auth concerns across custom hashing/session helpers, route actions, cookie handling, and hook-based validation. Consolidating into one engine reduces drift, improves maintainability, and aligns with the feature requirement to fully remove legacy session middleware.
+- Decision: Convert signup into pure user-account creation and authentication bootstrap, removing direct family row creation from the signup transaction.
+- Rationale: This cleanly separates identity creation from household setup, enabling independent signup and future join/create flows.
 - Alternatives considered:
-  - Keep legacy session management and add OIDC beside it. Rejected because it creates dual session truth and violates FR-014.
-  - Build a new in-house auth manager around current code. Rejected because it repeats solved auth-engine concerns and increases long-term risk.
+  - Keep signup coupled to family creation with optional skip. Rejected because it preserves mixed responsibilities and increases edge-case branching.
+  - Add a second signup endpoint while retaining legacy path. Rejected due to duplicate UX and maintenance overhead.
 
-## Decision 2: Reuse existing Drizzle/libsql database connection
+## Decision 2: Route authenticated users without family membership to onboarding
 
-- Decision: Configure `better-auth` against the existing Drizzle/libsql database (`DATABASE_URL`) and existing migration workflow.
-- Rationale: This preserves current deployment assumptions, keeps self-hosting simple, avoids split persistence, and satisfies the explicit requirement not to stand up a new database.
+- Decision: Add a guard path that redirects newly authenticated users with no `family_members` row to `/onboarding` until they create or join a family.
+- Rationale: Centralized onboarding routing prevents broken assumptions in app layouts that currently expect `session.familyId` to exist.
 - Alternatives considered:
-  - Separate auth database. Rejected because it adds operational burden and synchronization complexity.
-  - In-memory auth/session state. Rejected because persistent sessions and multi-process deployment require durable storage.
+  - Scatter null-family checks across all app pages. Rejected because it is brittle and error-prone.
+  - Redirect to `/admin/family` directly. Rejected because that route currently assumes existing family context and is not an onboarding shell.
 
-## Decision 3: Add better-auth tables via Drizzle migration and keep domain tables
+## Decision 3: Introduce explicit onboarding state derived from membership
 
-- Decision: Introduce/align `users`, `sessions`, and `accounts` auth tables (plus any required supporting auth tables), while retaining current family/chore/prize domain tables.
-- Rationale: `better-auth` needs canonical auth tables, but family workflow data should remain stable. A migration/backfill path can preserve existing user continuity and avoid duplicate records.
+- Decision: Model onboarding completion as a derived state: `hasFamilyMembership` = true when user has at least one family membership.
+- Rationale: Avoids new persistence unless needed; membership is the source of truth and keeps schema changes minimal.
 - Alternatives considered:
-  - Replace existing domain `members` table with auth-native shape immediately. Rejected for this feature because it broadens risk and touches unrelated domain logic.
-  - Keep existing `sessions` table unchanged and map it directly. Rejected due to mismatch with better-auth lifecycle expectations.
+  - Persist separate onboarding status table. Rejected for added complexity and risk of state drift.
+  - Infer completion from first admin action. Rejected because family setup should be the explicit completion boundary.
 
-## Decision 4: Mode-driven login behavior from environment configuration
+## Decision 4: Keep family creation as authenticated onboarding action
 
-- Decision: Implement runtime UI/flow behavior controlled by `AUTH_MODE` with defaults and supporting OIDC env vars (`OIDC_ISSUER`, `OIDC_ACCOUNT_CLAIM`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_ISSUER_LABEL`).
-- Rationale: This enables self-hosters to choose local-only, OIDC-only, or mixed operation without code edits and directly satisfies FR-001 through FR-008.
+- Decision: Move family creation responsibility to onboarding action/API reachable only by authenticated users, then attach creator as admin in `family_members`.
+- Rationale: Maintains existing security and ownership semantics while supporting independent family creation timing.
 - Alternatives considered:
-  - Build-time mode toggles. Rejected because self-hosted operators need runtime configurability.
-  - Hardcode provider naming and claim. Rejected because the feature requires generic/white-label OIDC support.
+  - Allow anonymous family creation before auth. Rejected due to abuse risk and orphaned data potential.
+  - Background auto-create default family post-signup. Rejected because it violates independent creation goal.
 
-## Decision 5: Deterministic account linking and failure policy
+## Decision 5: Preserve better-auth as canonical identity/session engine
 
-- Decision: For first-time OIDC sign-in, normalize configured claim values by trim + case-folding before matching local user identifiers. Link only when there is exactly one match. Deny login when claim is missing or ambiguous.
-- Rationale: This directly applies approved clarifications and prevents accidental account takeover or duplicate user creation.
+- Decision: Continue using `better-auth` for signup/login/session and only adjust domain-layer linkage behavior.
+- Rationale: Aligns with constitutional auth constraint and avoids reworking stable auth internals.
 - Alternatives considered:
-  - Fuzzy matching or alias expansion. Rejected because behavior becomes non-deterministic and increases collision risk.
-  - Auto-link to oldest match in ambiguous cases. Rejected because it is unsafe and non-transparent.
+  - Custom temporary pre-family session system. Rejected because it duplicates existing auth/session capabilities.
 
-## Decision 6: Misconfiguration handling differs by auth mode
+## Decision 6: Add observability around onboarding and family provisioning
 
-- Decision: In `AUTH_MODE=oidc`, block sign-in with guidance when required OIDC settings are missing. In `AUTH_MODE=both`, suppress OIDC entry and keep local sign-in available.
-- Rationale: This follows clarified requirements and prevents lockouts in mixed-mode deployments while preserving secure fail-closed behavior for OIDC-only deployments.
+- Decision: Emit structured events for onboarding redirect decisions and family-creation outcomes (`onboarding_required`, `family_created_from_onboarding`, `family_create_failed`).
+- Rationale: Family creation is a high-impact flow and requires operator visibility per Constitution Principle V.
 - Alternatives considered:
-  - Disable all login in both mode if OIDC is broken. Rejected because it unnecessarily blocks local access.
-  - Silently fallback to local without logs. Rejected because operators lose visibility into broken OIDC setup.
-
-## Decision 7: Structured observability for auth configuration and linking failures
-
-- Decision: Emit structured logs for OIDC misconfiguration, missing claim, and ambiguous claim matches with operator-useful context (mode, issuer, claim key, failure type, request correlation fields) while avoiding secrets.
-- Rationale: Constitution Principle V requires observability for risky flows; auth misconfiguration has high operational impact.
-- Alternatives considered:
-  - User-only error messaging without logs. Rejected because DevOps cannot diagnose deployment issues quickly.
-  - Verbose logs including credentials/tokens. Rejected for security reasons.
-
-## Decision 8: Keep generic OIDC only
-
-- Decision: Use only the generic OIDC capability of `better-auth`; do not add Google/GitHub/Auth0-specific SDKs.
-- Rationale: Required by feature scope and keeps dependency surface minimal for self-hosters.
-- Alternatives considered:
-  - Provider-specific SDK packages. Rejected as out of scope.
+  - No dedicated logs. Rejected due to weak diagnosis for failed first-run experiences.

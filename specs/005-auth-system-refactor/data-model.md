@@ -1,109 +1,98 @@
-# Data Model: Authentication System Refactor
+# Data Model: Decoupled Signup, Onboarding, and Family Creation
 
 ## Overview
 
-This feature introduces a dedicated authentication layer using `better-auth` while preserving existing family-domain entities. The model adds canonical auth entities and defines how they relate to existing household members.
+This model keeps identity/auth entities in `better-auth` and shifts family creation to an explicit onboarding step. A user can exist in the system without a family membership immediately after signup.
 
 ## Entities
 
-### 1. Auth User
+### 1. Auth User (`user`)
 
-- Purpose: Canonical identity record managed by `better-auth` for an application user.
+- Purpose: Canonical signed-in identity.
 - Key fields:
-  - `id` (string, primary key)
-  - `email` (string, nullable for non-email identities depending on provider)
-  - `emailVerified` (boolean)
-  - `name` (string, optional display label)
-  - `image` (string, optional)
-  - `createdAt`, `updatedAt` (timestamps)
+  - `id` (PK)
+  - `email` (normalized, unique within credential provider behavior)
+  - `name`
+  - `avatarEmoji` (existing schema field for emoji/avatar representation)
+  - `isActive`
+  - `createdAt`, `updatedAt`
 - Validation rules:
-  - Email, when present, should be normalized to lowercase and trimmed.
-  - IDs are immutable.
+  - Email must be trimmed + lowercase before persistence checks.
+  - `name` required for local signup flow.
 - Relationships:
-  - One-to-many with Auth Account
-  - One-to-many with Auth Session
-  - One-to-one/optional mapping to existing Member for continuity in current app domain.
+  - 1:N Auth Account
+  - 1:N Auth Session
+  - 0:N Family Membership
 
-### 2. Auth Session
+### 2. Family (`families`)
 
-- Purpose: Persistent authenticated session managed by `better-auth`.
+- Purpose: Household container for shared chores/prizes/settings.
 - Key fields:
-  - `id` (string, primary key)
-  - `userId` (foreign key -> Auth User)
-  - `expiresAt` (timestamp)
-  - `ipAddress`, `userAgent` (optional metadata)
-  - `createdAt`, `updatedAt` (timestamps)
+  - `id` (ULID)
+  - `name`
+  - `leaderboardResetDay`
+  - `createdAt`
 - Validation rules:
-  - Session must reference an existing Auth User.
-  - Expired sessions are not accepted for authorization.
+  - Name required and non-empty.
 - Relationships:
-  - Many-to-one with Auth User.
+  - 1:N Family Membership
+  - 1:N Chores/Prizes/Activity domain data
 
-### 3. Auth Account
+### 3. Family Membership (`family_members`)
 
-- Purpose: External or credential-based login identity linked to an Auth User.
+- Purpose: Join table linking users to families with role.
 - Key fields:
-  - `id` (string, primary key)
-  - `userId` (foreign key -> Auth User)
-  - `providerId` (string; e.g., `oidc` or local-credential provider id)
-  - `accountId` (string; provider subject/claim identity)
-  - `accessToken`, `refreshToken`, `idToken` (optional, if stored by provider flow)
-  - `createdAt`, `updatedAt` (timestamps)
+  - `memberId` -> `user.id`
+  - `familyId` -> `families.id`
+  - `role` (`admin` | `member`)
+  - `joinedAt`
 - Validation rules:
-  - (`providerId`, `accountId`) must be unique.
-  - Account must reference an existing Auth User.
+  - Unique pair (`memberId`, `familyId`).
+  - First family creator from onboarding is assigned `admin`.
 - Relationships:
-  - Many-to-one with Auth User.
+  - N:1 Auth User
+  - N:1 Family
 
-### 4. Verification/Credential Support Entities (if required by better-auth)
+### 4. Onboarding Status (Derived)
 
-- Purpose: Support password/email verification and recovery semantics depending on enabled plugins.
-- Expected fields: token/value + expiry + identifier references.
+- Purpose: Runtime state used for routing.
+- Derived fields:
+  - `hasFamilyMembership` (boolean)
+  - `onboardingRequired` = authenticated AND `hasFamilyMembership=false`
 - Validation rules:
-  - Tokens must expire and be single-use where applicable.
-- Relationships:
-  - Reference Auth User or identifier fields based on plugin requirements.
-
-### 5. Member (Existing Domain Entity)
-
-- Purpose: Existing family-domain user profile used by chores, prizes, assignments, and role logic.
-- Key fields currently include:
-  - `id`, `displayName`, `email`, `passwordHash`, `pin`, `isActive`, `createdAt`
-- Feature-specific role in migration:
-  - Remains source of family membership and app-domain behavior.
-  - Local email identities are matched for first-time OIDC account linking by normalized claim value.
-- Relationship updates:
-  - Add deterministic mapping approach between Auth User and Member (direct FK or stable lookup mapping) during implementation design.
+  - Determined from `family_members` existence; no separate persistence required.
 
 ## Relationship Summary
 
-- Auth User 1 -> N Auth Session
 - Auth User 1 -> N Auth Account
-- Auth User 1 -> 0..1 Member mapping (implementation detail chosen in code/migration)
-- Member N -> N Families (existing `family_members` join remains unchanged)
+- Auth User 1 -> N Auth Session
+- Auth User 1 -> 0..N Family Membership
+- Family 1 -> N Family Membership
 
 ## State Transitions
 
-### Sign-In State
+### Account and Onboarding Lifecycle
 
-1. Unauthenticated
-2. Authenticated session created (local or OIDC)
-3. Session refreshed/continued until expiry
-4. Signed out or expired -> returns to unauthenticated
+1. Anonymous user submits signup form.
+2. Auth User (+ auth account/session) is created.
+3. Membership check:
+   - No family membership -> redirect to onboarding.
+   - Has family membership -> proceed to app routes.
+4. Onboarding family creation:
+   - Create family row.
+   - Create family_members row with role `admin`.
+   - Mark onboarding complete via derived membership state.
+5. User lands on normal app home/admin destination.
 
-### OIDC First-Login Linking State
+### Existing User Sign-In
 
-1. OIDC callback received with configured claim
-2. Claim normalized (trim + case-fold)
-3. Match local identifier:
-   - Exactly one match -> create/link Auth Account to existing user mapping
-   - Zero matches -> create new auth user per policy (if allowed by implementation scope)
-   - Multiple matches -> deny login and emit admin-action-required error
-4. Session creation only after successful link decision
+1. User signs in.
+2. Membership check runs during route/session guard.
+3. If membership missing, redirect to onboarding; otherwise continue normally.
 
 ## Data Integrity Rules
 
-- No duplicate (`providerId`, `accountId`) auth accounts.
-- No auth session without a valid auth user.
-- Missing configured OIDC claim always hard-fails sign-in (no partial account creation).
-- Ambiguous local matches always hard-fail sign-in (no auto-linking).
+- No family should exist without at least one admin membership after successful onboarding completion transaction.
+- No duplicate membership pairs (`memberId`, `familyId`).
+- Signup must not create `families` rows directly.
+- App routes that require `familyId` must gate or redirect before dereferencing family-dependent data.
